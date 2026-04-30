@@ -183,7 +183,7 @@ def require_admin(current_user: User = Depends(deps.get_current_user)):
         raise HTTPException(status_code=403, detail="Only super_admin and admin can perform this action")
     return current_user
 
-@router.get("/init")
+@router.post("/init")
 def initialize_rbac(db: Session = Depends(deps.get_db)):
     """Initialize default RBAC roles in database."""
     init_default_roles(db)
@@ -223,10 +223,10 @@ def get_my_role(
 
 @router.get("/roles", response_model=List[RoleResponse])
 def get_roles(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_db)
 ):
-    """Get all roles. Only super_admin and admin can view roles."""
+    """Get all roles. Anyone authenticated can view roles."""
     init_default_roles(db)
     roles = db.query(RBACRole).all()
     return [
@@ -285,10 +285,10 @@ def create_role(
 def update_role(
     role_id: str,
     role_update: RoleUpdate,
-    current_user: User = Depends(require_super_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(deps.get_db)
 ):
-    """Update a role. Only super_admin can update roles."""
+    """Update a role. Only super_admin and admin can update roles."""
     role = db.query(RBACRole).filter(RBACRole.role_id == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -320,10 +320,10 @@ def update_role(
 @router.delete("/roles/{role_id}")
 def delete_role(
     role_id: str,
-    current_user: User = Depends(require_super_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(deps.get_db)
 ):
-    """Delete a role. Only super_admin can delete roles."""
+    """Delete a role. Only super_admin and admin can delete roles."""
     role = db.query(RBACRole).filter(RBACRole.role_id == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -345,10 +345,10 @@ def get_permission_groups(current_user: User = Depends(require_admin)):
 
 @router.get("/temp-access", response_model=List[TempAccessResponse])
 def get_temp_access(
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_db)
 ):
-    """Get all temporary access grants. Only super_admin and admin can access."""
+    """Get all temporary access grants."""
     accesses = db.query(RBACTempAccess).filter(RBACTempAccess.is_active == True).all()
     return [
         TempAccessResponse(

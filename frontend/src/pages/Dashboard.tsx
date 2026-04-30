@@ -216,7 +216,7 @@ export default function Dashboard() {
     { id: 'dashboard', icon: <Home size={18} />, label: 'Dashboard' },
     { id: 'users', icon: <Users size={18} />, label: 'Users' },
     { id: 'workflows', icon: <BarChart2 size={18} />, label: 'Workflows' },
-    { id: 'rbac', icon: <Shield size={18} />, label: 'RBAC Access' },
+    { id: 'admin/rbac', icon: <Shield size={18} />, label: 'RBAC Access' },
     { id: 'settings', icon: <Settings size={18} />, label: 'Settings' },
   ]
 
@@ -241,14 +241,14 @@ export default function Dashboard() {
           {navItems.map((item) => (
             <button key={item.id}
               onClick={() => {
-                if (item.id === 'dashboard' || item.id === 'rbac') setActiveView(item.id as any);
+                if (item.id === 'dashboard') setActiveView(item.id as any);
                 else navigate(`/${item.id}`);
               }}
-              className={`dash-nav-item${activeView === item.id ? ' active' : ''}`}
+              className={`dash-nav-item${(activeView === item.id || (item.id === 'admin/rbac' && window.location.pathname === '/admin/rbac')) ? ' active' : ''}`}
               style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}>
               {item.icon}
               <span style={{ flex: 1 }}>{item.label}</span>
-              {activeView === item.id && <ChevronRight size={14} className="dash-nav-arrow" />}
+              {(activeView === item.id) && <ChevronRight size={14} className="dash-nav-arrow" />}
             </button>
           ))}
         </nav>

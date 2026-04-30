@@ -1,9 +1,9 @@
 // src/lib/RBAC/RBACPage.tsx
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { PERMISSION_GROUPS, actionColor, rbacApi, DEFAULT_ROLES, INITIAL_AUDIT } from "./service";
 import { useRBAC } from "./hooks";
-import { PERMISSION_GROUPS, actionColor, rbacApi, DEFAULT_ROLES } from "./service";
-import { Role } from "./types";
+import { Role, AuditLog, TempAccess } from "./types";
 import { useSettings } from "../SettingsContext";
 import { supabase } from "../supabase";
 
@@ -90,16 +90,15 @@ function injectParticleStyles() {
 /* ─────────────────────────────────────────────
    Role card with 3D tilt
 ───────────────────────────────────────────── */
-function RoleCard({ role, primary, onEdit, onDelete }: {
+function RoleCard({ role, primary, onEdit, onDelete, isSuperAdmin }: {
   role: Role;
   primary: string;
   onEdit: () => void;
   onDelete?: () => void;
+  isSuperAdmin: boolean;
 }) {
   const tilt = useTilt(14);
   const [hovered, setHovered] = useState(false);
-  const { roles } = useRBAC();
-  const isSuperAdmin = roles[0]?.id === 'super_admin';
 
   const canEdit = isSuperAdmin || !role.isSystem;
 
@@ -272,10 +271,12 @@ export default function RBACPage() {
 
   document.documentElement.style.setProperty("--rbac-glow", primary + "55");
 
-  const { roles, audit, tempAccess, togglePerm, addRole, deleteRole, addTempAccess, revokeTempAccess, setRoles, setTempAccess } = useRBAC();
+  // Use local state - will be populated from API in useEffect
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [tempAccess, setTempAccess] = useState<TempAccess[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>('employee');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab]     = useState("roles");
+  const [activeTab, setActiveTab] = useState("roles");
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [showNewRole, setShowNewRole] = useState(false);
   const [showTempModal, setShowTempModal] = useState(false);
@@ -288,9 +289,26 @@ export default function RBACPage() {
   const [tempUser, setTempUser] = useState("");
   const [tempRole, setTempRole] = useState("viewer");
   const [tempExpiry, setTempExpiry] = useState("");
+  const [audit] = useState<AuditLog[]>(INITIAL_AUDIT);
 
   const isSuperAdmin = currentUserRole === 'super_admin';
   const canManageRBAC = currentUserRole === 'super_admin' || currentUserRole === 'admin';
+
+  // Toggle permission function (local)
+  const togglePerm = useCallback((role: Role, perm: string) => {
+    setRoles(prev => prev.map(r => r.id === role.id
+      ? { ...r, permissions: r.permissions.includes(perm) ? r.permissions.filter(p=>p!==perm) : [...r.permissions, perm] }
+      : r
+    ));
+  }, []);
+
+  // Add/delete role functions
+  const addRole = (role: Role) => setRoles(p => [...p, role]);
+  const deleteRole = (id: string) => setRoles(p => p.filter(r => r.id !== id));
+
+  // Temp access functions
+  const addTempAccess = (access: TempAccess) => setTempAccess(p => [...p, access]);
+  const revokeTempAccess = (id: string) => setTempAccess(p => p.filter(x => x.id !== id));
 
   useEffect(() => {
     const loadData = async () => {
@@ -299,41 +317,40 @@ export default function RBACPage() {
         // Initialize RBAC in database
         await rbacApi.init();
         
-        // Get actual role from backend API (which reads from Neon database)
+        // Get actual role from backend API
         let userRole = 'employee';
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token) {
-            const response = await fetch('/api/v1/users/me', {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (response.ok) {
-              const me = await response.json();
-              userRole = me?.role || 'employee';
-              console.log('✅ User role from database:', userRole);
-            } else {
-              console.warn('Failed to fetch user role:', response.status);
-            }
-          }
+          const me = await rbacApi.getCurrentUser();
+          userRole = me?.role || 'employee';
+          console.log('User role from database:', userRole);
         } catch (err) {
           console.warn('Could not fetch user role from API:', err);
         }
         
         setCurrentUserRole(userRole);
-        console.log('RBAC Access level:', userRole, '| isSuperAdmin:', userRole === 'super_admin', '| canManage:', userRole === 'super_admin' || userRole === 'admin');
+        console.log('RBAC Access level:', userRole);
         
-        const [fetchedRoles, fetchedTemp] = await Promise.all([
-          rbacApi.getRoles(),
-          rbacApi.getTempAccess(),
-        ]);
-        setRoles(fetchedRoles);
-        setTempAccess(fetchedTemp);
+        // Fetch roles from API
+        try {
+          const fetchedRoles = await rbacApi.getRoles();
+          console.log('Fetched roles from API:', fetchedRoles);
+          setRoles(fetchedRoles.length > 0 ? fetchedRoles : DEFAULT_ROLES);
+        } catch (e) {
+          console.error('Failed to fetch roles:', e);
+          setRoles(DEFAULT_ROLES);
+        }
+        
+        // Fetch temp access from API
+        try {
+          const fetchedTemp = await rbacApi.getTempAccess();
+          console.log('Fetched temp access from API:', fetchedTemp);
+          setTempAccess(fetchedTemp);
+        } catch (e) {
+          console.error('Failed to fetch temp access:', e);
+        }
       } catch (err) {
         console.error('Failed to load RBAC data:', err);
+        setRoles(DEFAULT_ROLES);
       } finally {
         setLoading(false);
       }
@@ -548,7 +565,7 @@ export default function RBACPage() {
                 <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#475569", fontSize: 13 }}>🔍</span>
               </div>
             )}
-            {activeTab === "roles" && !selectedRole && isSuperAdmin && (
+            {activeTab === "roles" && !selectedRole && (isSuperAdmin || canManageRBAC) && (
               <button
                 onClick={() => setShowNewRole(true)}
                 style={{
@@ -647,7 +664,8 @@ export default function RBACPage() {
                   role={role}
                   primary={primary}
                   onEdit={() => setSelectedRole(role)}
-                  onDelete={() => deleteRole(role.id)}
+                  onDelete={() => handleDeleteRole(role.id)}
+                  isSuperAdmin={isSuperAdmin}
                 />
               ))}
               {filteredRoles.length === 0 && (
@@ -661,7 +679,7 @@ export default function RBACPage() {
         )}
 
         {/* ── PERMISSIONS EDITOR ── */}
-        {activeTab === "roles" && selectedRole && isSuperAdmin && (
+        {activeTab === "roles" && selectedRole && (isSuperAdmin || canManageRBAC) && (
           <div style={{ padding: "20px 28px" }}>
             <button
               onClick={() => setSelectedRole(null)}
@@ -735,8 +753,10 @@ export default function RBACPage() {
                   try {
                     await rbacApi.updateRole(selectedRole.id, { permissions: selectedRole.permissions });
                     console.log('✅ Permissions saved to backend');
+                    alert('Permissions saved successfully!');
                   } catch (err) {
                     console.error('Failed to save permissions:', err);
+                    alert('Failed to save permissions. Check console for details.');
                   }
                 }}
                 style={{
@@ -752,8 +772,8 @@ export default function RBACPage() {
           </div>
         )}
         
-        {/* Edit button for non-super-admin (view only) */}
-        {activeTab === "roles" && selectedRole && !isSuperAdmin && (
+        {/* View only permissions for non-admins */}
+        {activeTab === "roles" && selectedRole && !isSuperAdmin && !canManageRBAC && (
           <div style={{ padding: "20px 28px" }}>
             <button
               onClick={() => setSelectedRole(null)}

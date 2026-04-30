@@ -1,9 +1,12 @@
 import { supabase } from './supabase';
 
+// Use relative path to leverage Vite proxy
 const API_BASE_URL = '/api/v1';
 
 async function getHeaders() {
   const { data: { session } } = await supabase.auth.getSession();
+  const tokenPreview = session?.access_token ? session.access_token.slice(0, 20) : 'none';
+  console.log('getSession result:', session ? 'has session' : 'no session', tokenPreview);
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };

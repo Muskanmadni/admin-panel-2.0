@@ -31,11 +31,12 @@ class UnifiedRegister(BaseModel):
     user_id: UUID  # Supabase User ID
     email: str
     full_name: Optional[str] = None
-    user_type: str  # 'individual' or 'organizational'
+    user_type: str  # 'individual', 'organizational', or 'employee'
     role: str = "employee"
     # Organization specific
     org_name: Optional[str] = None
     subdomain: Optional[str] = None
+    org_code: Optional[str] = None
     department: Optional[str] = None
     position: Optional[str] = None
     # Individual specific
@@ -90,6 +91,27 @@ def register_user(
                 position=user_data.position
             )
             db.add(org_profile)
+            # Link user to tenant
+            user.tenant_id = tenant.id
+        
+        elif user_data.user_type == 'employee':
+            # 2c. Handle Employee User - lookup tenant by org_code (subdomain)
+            if not user_data.org_code:
+                raise HTTPException(status_code=400, detail="Organization code is required for employee type")
+            
+            tenant = db.query(Tenant).filter(Tenant.slug == user_data.org_code).first()
+            if not tenant:
+                raise HTTPException(status_code=404, detail="Organization not found. Check your organization code.")
+            
+            org_profile = OrganizationalUser(
+                user_id=user.id,
+                tenant_id=tenant.id,
+                department=user_data.department,
+                position=user_data.position
+            )
+            db.add(org_profile)
+            # Link user to tenant
+            user.tenant_id = tenant.id
         
         elif user_data.user_type == 'individual':
             # 2b. Handle Individual User
@@ -100,7 +122,7 @@ def register_user(
             )
             db.add(ind_profile)
         else:
-            raise HTTPException(status_code=400, detail="Invalid user_type. Use 'individual' or 'organizational'.")
+            raise HTTPException(status_code=400, detail="Invalid user_type. Use 'individual', 'employee', or 'organizational'.")
 
         db.commit()
         db.refresh(user)

@@ -72,7 +72,9 @@ export const rbacApi = {
 
   async getRoles(): Promise<Role[]> {
     try {
+      console.log('Fetching roles from /api/v1/rbac/roles');
       const roles = await api.get<any[]>('/rbac/roles');
+      console.log('API response for roles:', roles);
       // Normalize the response to match frontend Role type
       return roles.map(r => ({
         id: r.id,
@@ -85,7 +87,8 @@ export const rbacApi = {
         createdAt: r.createdAt || r.created_at || "2024-01-01",
         memberCount: r.memberCount || r.member_count || 0,
       }));
-    } catch {
+    } catch (err) {
+      console.error('Error fetching roles:', err);
       return DEFAULT_ROLES;
     }
   },
@@ -139,7 +142,9 @@ export const rbacApi = {
 
   async getTempAccess(): Promise<TempAccess[]> {
     try {
+      console.log('Fetching temp access from /api/v1/rbac/temp-access');
       const accesses = await api.get<any[]>('/rbac/temp-access');
+      console.log('Temp access API response:', accesses);
       return accesses.map(a => ({
         id: a.id,
         user: a.user,
@@ -147,7 +152,8 @@ export const rbacApi = {
         expiresAt: a.expires_at,
         grantedBy: a.granted_by,
       }));
-    } catch {
+    } catch (err) {
+      console.error('Error fetching temp access:', err);
       return [];
     }
   },
@@ -163,5 +169,9 @@ export const rbacApi = {
         activeTemporaryAccess: 0,
       };
     }
+  },
+
+  async getCurrentUser() {
+    return await api.get<any>('/users/me');
   },
 };

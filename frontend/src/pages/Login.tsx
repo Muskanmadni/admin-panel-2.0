@@ -172,6 +172,13 @@ export default function Login({ setIsAuthenticated }: LoginProps) {
               <small>Personal account for one user</small>
             </div>
           </Link>
+          <Link to="/signup?type=employee" className="signup-option" onClick={() => setShowSignupMenu(false)}>
+            <span className="signup-option-icon">💼</span>
+            <div>
+              <strong>Employee</strong>
+              <small>Join your organization using code</small>
+            </div>
+          </Link>
           <Link to="/signup?type=organization" className="signup-option" onClick={() => setShowSignupMenu(false)}>
             <span className="signup-option-icon">🏢</span>
             <div>
