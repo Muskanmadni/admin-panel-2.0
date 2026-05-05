@@ -1,30 +1,41 @@
-// src/App.tsx  — replace your existing App.tsx with this
-
+// src/App.tsx
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { api } from './lib/api'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgetPassword'
 import ResetPassword from './pages/Resetpassword'
 import Dashboard from './pages/Dashboard'
+import EmployeeDashboard from './pages/EmployeeDashboard'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useInactivity } from './hooks/useInactivity'
 import RBACPage from './lib/RBAC/RBACPage'
-import { SettingsProvider } from './lib/SettingsContext'   // ← NEW
+import Workflows from './pages/workflows'
+import AdminAssignments from './pages/AdminAssignments'
+import { SettingsProvider } from './lib/SettingsContext'
+
+const ADMIN_ROLES = ['admin', 'super_admin']
 
 function AppRoutes({
   isAuthenticated,
   setIsAuthenticated,
   userId,
+  userRole,
 }: {
   isAuthenticated: boolean
   setIsAuthenticated: (v: boolean) => void
   userId: string | null
+  userRole: string | null
 }) {
   useInactivity(isAuthenticated ? userId : null)
+
+  const homePath = isAuthenticated
+    ? ADMIN_ROLES.includes(userRole ?? '') ? '/dashboard' : '/employee-dashboard'
+    : '/login'
 
   return (
     <Routes>
@@ -35,14 +46,17 @@ function AppRoutes({
       <Route path="/reset-password"  element={<ResetPassword />} />
 
       {/* Protected */}
-      <Route path="/dashboard"  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/settings"   element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/users"      element={<ProtectedRoute><Users /></ProtectedRoute>} />
-      <Route path="/admin/rbac" element={<ProtectedRoute><RBACPage /></ProtectedRoute>} />
+      <Route path="/dashboard"          element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/employee-dashboard" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
+      <Route path="/settings"           element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/users"              element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      <Route path="/workflows"          element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+      <Route path="/admin/rbac"         element={<ProtectedRoute><RBACPage /></ProtectedRoute>} />
+      <Route path="/admin/assignments"  element={<ProtectedRoute><AdminAssignments /></ProtectedRoute>} />
 
       {/* Default */}
-      <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      <Route path="/" element={<Navigate to={homePath} replace />} />
+      <Route path="*" element={<Navigate to={homePath} replace />} />
     </Routes>
   )
 }
@@ -50,18 +64,33 @@ function AppRoutes({
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userId, setUserId]                   = useState<string | null>(null)
+  const [userRole, setUserRole]               = useState<string | null>(null)
   const [loading, setLoading]                 = useState(true)
+
+  const loadRole = async () => {
+    try {
+      const me = await api.get<{ role: string }>('/users/me')
+      setUserRole(me.role)
+    } catch {
+      setUserRole('employee')
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user?.id ?? null
       setIsAuthenticated(!!data.session)
-      setUserId(data.session?.user?.id ?? null)
-      setLoading(false)
+      setUserId(uid)
+      if (uid) loadRole().finally(() => setLoading(false))
+      else setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user?.id ?? null
       setIsAuthenticated(!!session)
-      setUserId(session?.user?.id ?? null)
+      setUserId(uid)
+      if (uid) loadRole()
+      else setUserRole(null)
     })
 
     return () => listener.subscription.unsubscribe()
@@ -70,13 +99,13 @@ function App() {
   if (loading) return null
 
   return (
-    // SettingsProvider wraps the ENTIRE app — every page gets live settings
     <SettingsProvider>
       <Router>
         <AppRoutes
           isAuthenticated={isAuthenticated}
           setIsAuthenticated={setIsAuthenticated}
           userId={userId}
+          userRole={userRole}
         />
       </Router>
     </SettingsProvider>

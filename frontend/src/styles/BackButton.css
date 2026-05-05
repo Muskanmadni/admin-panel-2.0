@@ -1,0 +1,220 @@
+/* Enhanced Back Button Component Styles */
+.back-button-wrapper.enhanced {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: slideInLeft 0.5s ease-out;
+}
+
+/* Enhanced Back Button */
+.back-button.enhanced {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #1e2d45, #0d1526);
+  border: 2px solid #3b82f6;
+  border-radius: 16px;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+}
+
+.back-button.enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  transition: left 0.6s ease;
+}
+
+.back-button.enhanced:hover::before {
+  left: 100%;
+}
+
+.back-button.enhanced:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #60a5fa;
+  transform: translateX(-6px);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+}
+
+.back-button.enhanced:active {
+  transform: translateX(-3px) scale(0.98);
+}
+
+.back-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.back-button.enhanced:hover .back-icon-wrapper {
+  background: rgba(59, 130, 246, 0.3);
+  transform: scale(1.1);
+}
+
+.back-icon {
+  color: #60a5fa;
+  transition: transform 0.3s ease;
+}
+
+.back-button.enhanced:hover .back-icon {
+  transform: translateX(-2px);
+  color: #93c5fd;
+}
+
+.back-label {
+  color: inherit;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.back-button-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.8s ease;
+}
+
+.back-button.enhanced:hover .back-button-shine {
+  left: 100%;
+}
+
+/* Home Actions Container */
+.home-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Enhanced Home Button */
+.home-button.enhanced,
+.grid-button.enhanced {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #1e2d45, #0d1526);
+  border: 2px solid #3b82f6;
+  border-radius: 14px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-button.enhanced:hover,
+.grid-button.enhanced:hover {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #60a5fa;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+}
+
+.home-button.enhanced:active,
+.grid-button.enhanced:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.home-icon,
+.grid-icon {
+  color: #60a5fa;
+  transition: all 0.3s ease;
+}
+
+.home-button.enhanced:hover .home-icon,
+.grid-button.enhanced:hover .grid-icon {
+  color: #93c5fd;
+  transform: scale(1.1);
+}
+
+/* Minimal Back Button */
+.back-button-minimal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid #3b82f6;
+  border-radius: 12px;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-button-minimal:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #60a5fa;
+  transform: translateX(-2px);
+}
+
+.back-button-minimal:active {
+  transform: translateX(-1px);
+}
+
+/* Animation */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .back-button-wrapper {
+    margin-bottom: 16px;
+  }
+  
+  .back-button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .home-button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Compact mode support */
+.back-button-wrapper.compact {
+  margin-bottom: 12px;
+}
+
+.back-button-wrapper.compact .back-button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.back-button-wrapper.compact .home-button {
+  width: 36px;
+  height: 36px;
+}

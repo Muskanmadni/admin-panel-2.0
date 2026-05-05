@@ -1,0 +1,671 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  User, Briefcase, Clock, Calendar, CheckCircle, AlertCircle,
+  TrendingUp, Award, Home, Settings,
+  Bell, LogOut, Plus, ChevronRight,
+  Users, XCircle
+} from 'lucide-react'
+import { supabase, dbHelpers } from '../lib/supabase'
+import { api } from '../lib/api'
+import { useSettings } from '../lib/SettingsContext'
+import '../styles/EmployeeDashboard.css'
+
+interface UserProfile {
+  id: string
+  name: string
+  email: string
+  role: string
+  department: string
+  avatar?: string
+  joinDate: string
+  status: string
+}
+
+interface Project {
+  id: string
+  assignmentId: string
+  assignmentStatus: string
+  name: string
+  description: string
+  status: 'active' | 'completed' | 'pending'
+  progress: number
+  deadline: string
+  priority: 'low' | 'medium' | 'high'
+  team: string[]
+}
+
+interface AttendanceRecord {
+  date: string
+  checkIn: string
+  checkOut: string
+  status: 'present' | 'absent' | 'late' | 'half-day'
+  hours: number
+}
+
+interface LeaveRequest {
+  id: string
+  type: 'sick' | 'vacation' | 'personal' | 'emergency'
+  startDate: string
+  endDate: string
+  reason: string
+  status: 'pending' | 'approved' | 'rejected'
+  days: number
+}
+
+export default function EmployeeDashboard() {
+  const navigate = useNavigate()
+  const { settings } = useSettings()
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeSection, setActiveSection] = useState('overview')
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+  const [projects, setProjects] = useState<Project[]>([])
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
+
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [newLeave, setNewLeave] = useState({
+    type: 'vacation' as LeaveRequest['type'],
+    startDate: '',
+    endDate: '',
+    reason: ''
+  })
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (!authUser) {
+          navigate('/login')
+          return
+        }
+
+        // Fetch profile from Supabase
+        const { data: profile } = await dbHelpers.getMyProfile(authUser.id)
+        if (profile) {
+          setUser({
+            id: profile.user_id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            department: profile.department || 'General',
+            joinDate: profile.created_at,
+            status: profile.is_online ? 'Active' : 'Offline'
+          })
+        }
+
+        // Fetch assigned projects from Neon DB
+        try {
+          const projectsData = await api.get<any[]>('/employee-projects/my')
+          setProjects(projectsData.map(p => ({
+            id: p.project_id,
+            assignmentId: p.id,
+            assignmentStatus: p.status,
+            name: p.project_name,
+            description: p.project_description || '',
+            status: p.project_status || 'active',
+            progress: p.project_progress ?? 0,
+            deadline: p.project_end_date || '',
+            priority: p.project_priority || 'medium',
+            team: []
+          })))
+        } catch {
+          // no projects yet
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserData()
+  }, [navigate])
+
+  const handleCheckIn = () => {
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    const time = now.toTimeString().split(' ')[0].substring(0, 5)
+    setAttendance(prev => [
+      { date: today, checkIn: time, checkOut: '', status: 'present', hours: 0 },
+      ...prev.filter(r => r.date !== today)
+    ])
+  }
+
+  const handleCheckOut = () => {
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    const time = now.toTimeString().split(' ')[0].substring(0, 5)
+    setAttendance(prev => prev.map(r => {
+      if (r.date === today) {
+        const hours = (new Date(`${today} ${time}`).getTime() - new Date(`${today} ${r.checkIn}`).getTime()) / 3600000
+        return { ...r, checkOut: time, hours: Math.round(hours * 100) / 100 }
+      }
+      return r
+    }))
+  }
+
+  const handleLeaveRequest = () => {
+    if (!newLeave.startDate || !newLeave.endDate || !newLeave.reason) return
+    const days = Math.ceil((new Date(newLeave.endDate).getTime() - new Date(newLeave.startDate).getTime()) / 86400000) + 1
+    setLeaveRequests(prev => [{
+      id: Date.now().toString(),
+      ...newLeave,
+      status: 'pending',
+      days
+    }, ...prev])
+    setNewLeave({ type: 'vacation', startDate: '', endDate: '', reason: '' })
+    setShowLeaveModal(false)
+  }
+
+  const handleRejectProject = async (assignmentId: string) => {
+    if (!confirm('Reject this project assignment?')) return
+    try {
+      await api.post(`/employee-projects/${assignmentId}/reject`, {})
+      setProjects(prev => prev.map(p => p.assignmentId === assignmentId ? { ...p, assignmentStatus: 'rejected' } : p))
+    } catch (err) {
+      console.error('Failed to reject project:', err)
+      alert('Failed to reject project')
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
+
+  if (loading) {
+    return (
+      <div className="employee-dashboard-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading your dashboard...</p>
+      </div>
+    )
+  }
+
+  const navItems = [
+    { id: 'overview',    icon: <Home size={20} />,     label: 'Overview' },
+    { id: 'profile',     icon: <User size={20} />,     label: 'Profile' },
+    { id: 'projects',    icon: <Briefcase size={20} />, label: 'Projects' },
+    { id: 'attendance',  icon: <Clock size={20} />,    label: 'Attendance' },
+    { id: 'leave',       icon: <Calendar size={20} />, label: 'Leave' },
+    { id: 'settings',    icon: <Settings size={20} />, label: 'Settings' },
+  ]
+
+  const today = new Date().toISOString().split('T')[0]
+  const todayAttendance = attendance.find(r => r.date === today)
+  const canCheckIn = !todayAttendance?.checkIn
+  const canCheckOut = !!(todayAttendance?.checkIn && !todayAttendance?.checkOut)
+
+  return (
+    <div className="employee-dashboard">
+      {/* Animated Background */}
+      <div className="emp-bg-animation">
+        <div className="emp-blob emp-blob-1"></div>
+        <div className="emp-blob emp-blob-2"></div>
+        <div className="emp-blob emp-blob-3"></div>
+        <div className="emp-grid"></div>
+        <div className="emp-particles"></div>
+      </div>
+
+      {/* Sidebar */}
+      <aside className="emp-sidebar">
+        <div className="emp-sidebar-header">
+          <div className="emp-logo-section">
+            <div className="emp-logo-wrapper">
+              <img
+                src={settings.logoUrl || '/logo.png'}
+                alt={settings.orgName}
+                className="emp-logo-image"
+                onError={(e) => { e.currentTarget.style.display = 'none' }}
+              />
+            </div>
+            <span className="emp-org-name">{settings.orgName}</span>
+          </div>
+        </div>
+
+        <nav className="emp-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id)}
+              className={`emp-nav-item ${activeSection === item.id ? 'active' : ''}`}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+              {activeSection === item.id && <ChevronRight size={16} />}
+            </button>
+          ))}
+        </nav>
+
+        <div className="emp-sidebar-footer">
+          <div className="emp-user-section">
+            <div className="emp-user-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
+            <div className="emp-user-info">
+              <div className="emp-user-name">{user?.name}</div>
+              <div className="emp-user-role">{user?.role}</div>
+              <div className="emp-user-dept">{user?.department}</div>
+            </div>
+          </div>
+          <button className="emp-logout-btn" onClick={handleLogout}>
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="emp-main-content">
+        <header className="emp-header">
+          <div className="emp-header-left">
+            <h1 className="emp-header-title">Welcome back, {user?.name?.split(' ')[0]}! 👋</h1>
+            <p className="emp-header-subtitle">Here's what's happening with your work today</p>
+          </div>
+          <div className="emp-header-right">
+            <button className="emp-notification-btn" onClick={() => setShowNotifications(!showNotifications)}>
+              <Bell size={20} />
+              <span className="emp-notification-dot"></span>
+            </button>
+            <div className="emp-profile-menu">
+              <button className="emp-profile-btn" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+                <div className="emp-avatar-small">{user?.name?.charAt(0).toUpperCase()}</div>
+              </button>
+              {showProfileMenu && (
+                <div className="emp-dropdown">
+                  <button onClick={() => setActiveSection('profile')}><User size={16} /> Profile</button>
+                  <button onClick={() => setActiveSection('settings')}><Settings size={16} /> Settings</button>
+                  <hr />
+                  <button onClick={handleLogout}><LogOut size={16} /> Logout</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="emp-content">
+          {activeSection === 'overview' && <OverviewSection user={user} projects={projects} attendance={attendance} />}
+          {activeSection === 'profile' && <ProfileSection user={user} />}
+          {activeSection === 'projects' && <ProjectsSection projects={projects} onReject={handleRejectProject} />}
+          {activeSection === 'attendance' && (
+            <AttendanceSection
+              attendance={attendance}
+              onCheckIn={handleCheckIn}
+              onCheckOut={handleCheckOut}
+              canCheckIn={canCheckIn}
+              canCheckOut={canCheckOut}
+            />
+          )}
+          {activeSection === 'leave' && (
+            <LeaveSection leaveRequests={leaveRequests} onNewLeave={() => setShowLeaveModal(true)} />
+          )}
+          {activeSection === 'settings' && <SettingsSection />}
+        </div>
+      </main>
+
+      {/* Leave Request Modal */}
+      {showLeaveModal && (
+        <div className="emp-modal-overlay">
+          <div className="emp-modal">
+            <div className="emp-modal-header">
+              <h2>Apply for Leave</h2>
+              <button onClick={() => setShowLeaveModal(false)}><AlertCircle size={20} /></button>
+            </div>
+            <div className="emp-modal-content">
+              <div className="emp-form-group">
+                <label>Leave Type</label>
+                <select value={newLeave.type} onChange={(e) => setNewLeave(prev => ({ ...prev, type: e.target.value as LeaveRequest['type'] }))}>
+                  <option value="vacation">Vacation</option>
+                  <option value="sick">Sick Leave</option>
+                  <option value="personal">Personal</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </div>
+              <div className="emp-form-row">
+                <div className="emp-form-group">
+                  <label>Start Date</label>
+                  <input type="date" value={newLeave.startDate} onChange={(e) => setNewLeave(prev => ({ ...prev, startDate: e.target.value }))} />
+                </div>
+                <div className="emp-form-group">
+                  <label>End Date</label>
+                  <input type="date" value={newLeave.endDate} onChange={(e) => setNewLeave(prev => ({ ...prev, endDate: e.target.value }))} />
+                </div>
+              </div>
+              <div className="emp-form-group">
+                <label>Reason</label>
+                <textarea value={newLeave.reason} onChange={(e) => setNewLeave(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave..." rows={4} />
+              </div>
+            </div>
+            <div className="emp-modal-footer">
+              <button className="emp-btn-secondary" onClick={() => setShowLeaveModal(false)}>Cancel</button>
+              <button className="emp-btn-primary" onClick={handleLeaveRequest}>Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OverviewSection({ user, projects, attendance }: any) {
+  const activeProjects = projects.filter((p: any) => p.status === 'active').length
+  const completedProjects = projects.filter((p: any) => p.status === 'completed').length
+  const now = new Date()
+  const presentDays = attendance.filter((a: any) => {
+    const d = new Date(a.date)
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && a.status === 'present'
+  }).length
+
+  return (
+    <div className="emp-overview">
+      <div className="emp-stats-grid">
+        <div className="emp-stat-card emp-stat-primary">
+          <div className="emp-stat-icon"><Briefcase size={24} /></div>
+          <div className="emp-stat-info">
+            <div className="emp-stat-value">{activeProjects}</div>
+            <div className="emp-stat-label">Active Projects</div>
+          </div>
+          <div className="emp-stat-bg-icon"><Briefcase size={40} /></div>
+        </div>
+        <div className="emp-stat-card emp-stat-success">
+          <div className="emp-stat-icon"><CheckCircle size={24} /></div>
+          <div className="emp-stat-info">
+            <div className="emp-stat-value">{completedProjects}</div>
+            <div className="emp-stat-label">Completed</div>
+          </div>
+          <div className="emp-stat-bg-icon"><CheckCircle size={40} /></div>
+        </div>
+        <div className="emp-stat-card emp-stat-warning">
+          <div className="emp-stat-icon"><Calendar size={24} /></div>
+          <div className="emp-stat-info">
+            <div className="emp-stat-value">{presentDays}</div>
+            <div className="emp-stat-label">Days Present</div>
+          </div>
+          <div className="emp-stat-bg-icon"><Calendar size={40} /></div>
+        </div>
+        <div className="emp-stat-card emp-stat-info">
+          <div className="emp-stat-icon"><TrendingUp size={24} /></div>
+          <div className="emp-stat-info">
+            <div className="emp-stat-value">{projects.length}</div>
+            <div className="emp-stat-label">Total Projects</div>
+          </div>
+          <div className="emp-stat-bg-icon"><TrendingUp size={40} /></div>
+        </div>
+      </div>
+
+      <div className="emp-recent-activity">
+        <h2>My Projects</h2>
+        {projects.length === 0 ? (
+          <p style={{ color: '#94a3b8', padding: '1rem 0' }}>No projects assigned yet.</p>
+        ) : (
+          <div className="emp-activity-list">
+            {projects.slice(0, 5).map((p: any) => (
+              <div key={p.id} className="emp-activity-item">
+                <div className="emp-activity-icon emp-icon-info"><Briefcase size={16} /></div>
+                <div className="emp-activity-content">
+                  <div className="emp-activity-title">{p.name}</div>
+                  <div className="emp-activity-desc">{p.description || 'No description'}</div>
+                  <div className="emp-activity-time">{p.deadline || ''}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProfileSection({ user }: any) {
+  return (
+    <div className="emp-profile">
+      <div className="emp-profile-card">
+        <div className="emp-profile-header">
+          <div className="emp-profile-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
+          <div className="emp-profile-info">
+            <h2>{user?.name}</h2>
+            <p>{user?.role}</p>
+            <div className="emp-profile-badge">Active</div>
+          </div>
+        </div>
+        <div className="emp-profile-details">
+          <div className="emp-detail-row">
+            <span className="emp-detail-label">Email</span>
+            <span className="emp-detail-value">{user?.email}</span>
+          </div>
+          <div className="emp-detail-row">
+            <span className="emp-detail-label">Department</span>
+            <span className="emp-detail-value">{user?.department}</span>
+          </div>
+          <div className="emp-detail-row">
+            <span className="emp-detail-label">Join Date</span>
+            <span className="emp-detail-value">{user?.joinDate ? new Date(user.joinDate).toLocaleDateString() : 'N/A'}</span>
+          </div>
+          <div className="emp-detail-row">
+            <span className="emp-detail-label">Status</span>
+            <span className="emp-detail-value">{user?.status}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectsSection({ projects, onReject }: any) {
+  const [filter, setFilter] = useState('all')
+  const filtered = projects.filter((p: any) => filter === 'all' || p.status === filter)
+
+  return (
+    <div className="emp-projects">
+      <div className="emp-section-header">
+        <h2>My Projects</h2>
+        <div className="emp-project-filters">
+          {['all', 'active', 'completed'].map(f => (
+            <button key={f} className={`emp-filter-btn ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <p style={{ color: '#94a3b8', padding: '1rem 0' }}>No projects found.</p>
+      ) : (
+        <div className="emp-projects-grid">
+          {filtered.map((project: any) => (
+            <div key={project.id} className={`emp-project-card emp-project-${project.status}`}>
+              <div className="emp-project-header">
+                <h3>{project.name}</h3>
+                <span className={`emp-project-status emp-status-${project.status}`}>{project.status}</span>
+              </div>
+              <p className="emp-project-desc">{project.description}</p>
+              <div className="emp-project-progress">
+                <div className="emp-progress-bar">
+                  <div className="emp-progress-fill" style={{ width: `${project.progress}%` }}></div>
+                </div>
+                <span className="emp-progress-text">{project.progress}%</span>
+              </div>
+              <div className="emp-project-meta">
+                <div className="emp-project-deadline">
+                  <Calendar size={14} />
+                  <span>{project.deadline}</span>
+                </div>
+                <div className={`emp-project-priority emp-priority-${project.priority}`}>{project.priority}</div>
+              </div>
+              {project.team.length > 0 && (
+                <div className="emp-project-team">
+                  <Users size={14} />
+                  <span>{project.team.join(', ')}</span>
+                </div>
+              )}
+              {/* Reject button — only show if not already rejected */}
+              {project.assignmentStatus !== 'rejected' ? (
+                <button
+                  onClick={() => onReject(project.assignmentId)}
+                  style={{
+                    marginTop: '0.75rem', width: '100%', padding: '0.4rem 0',
+                    background: '#ef444422', color: '#f87171', border: '1px solid #ef444444',
+                    borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <XCircle size={14} /> Reject Assignment
+                </button>
+              ) : (
+                <div style={{ marginTop: '0.75rem', textAlign: 'center', color: '#f87171', fontSize: '0.8rem', fontWeight: 600 }}>
+                  ✗ Assignment Rejected
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AttendanceSection({ attendance, onCheckIn, onCheckOut, canCheckIn, canCheckOut }: any) {
+  return (
+    <div className="emp-attendance">
+      <div className="emp-attendance-header">
+        <h2>Attendance Tracking</h2>
+        <div className="emp-attendance-actions">
+          {canCheckIn && (
+            <button className="emp-btn-primary emp-btn-checkin" onClick={onCheckIn}>
+              <Clock size={16} /> Check In
+            </button>
+          )}
+          {canCheckOut && (
+            <button className="emp-btn-secondary emp-btn-checkout" onClick={onCheckOut}>
+              <Clock size={16} /> Check Out
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="emp-attendance-stats">
+        <div className="emp-attendance-stat">
+          <div className="emp-stat-number">{attendance.filter((a: any) => a.status === 'present').length}</div>
+          <div className="emp-stat-text">Days Present</div>
+        </div>
+        <div className="emp-attendance-stat">
+          <div className="emp-stat-number">{attendance.filter((a: any) => a.status === 'late').length}</div>
+          <div className="emp-stat-text">Late Arrivals</div>
+        </div>
+        <div className="emp-attendance-stat">
+          <div className="emp-stat-number">{attendance.reduce((acc: number, a: any) => acc + a.hours, 0).toFixed(1)}</div>
+          <div className="emp-stat-text">Total Hours</div>
+        </div>
+      </div>
+      <div className="emp-attendance-table">
+        <h3>Recent Attendance</h3>
+        {attendance.length === 0 ? (
+          <p style={{ color: '#94a3b8', padding: '1rem 0' }}>No attendance records yet. Use Check In to start.</p>
+        ) : (
+          <div className="emp-table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th><th>Hours</th></tr>
+              </thead>
+              <tbody>
+                {attendance.slice(0, 10).map((record: any, i: number) => (
+                  <tr key={i}>
+                    <td>{new Date(record.date).toLocaleDateString()}</td>
+                    <td>{record.checkIn || '-'}</td>
+                    <td>{record.checkOut || '-'}</td>
+                    <td><span className={`emp-status-badge emp-status-${record.status}`}>{record.status}</span></td>
+                    <td>{record.hours || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LeaveSection({ leaveRequests, onNewLeave }: any) {
+  return (
+    <div className="emp-leave">
+      <div className="emp-leave-header">
+        <h2>Leave Management</h2>
+        <button className="emp-btn-primary" onClick={onNewLeave}><Plus size={16} /> Apply for Leave</button>
+      </div>
+      <div className="emp-leave-stats">
+        <div className="emp-leave-stat">
+          <div className="emp-stat-number">{leaveRequests.filter((r: any) => r.status === 'approved').length}</div>
+          <div className="emp-stat-text">Approved</div>
+        </div>
+        <div className="emp-leave-stat">
+          <div className="emp-stat-number">{leaveRequests.filter((r: any) => r.status === 'pending').length}</div>
+          <div className="emp-stat-text">Pending</div>
+        </div>
+        <div className="emp-leave-stat">
+          <div className="emp-stat-number">{leaveRequests.reduce((acc: number, r: any) => acc + r.days, 0)}</div>
+          <div className="emp-stat-text">Total Days</div>
+        </div>
+      </div>
+      {leaveRequests.length === 0 ? (
+        <p style={{ color: '#94a3b8', padding: '1rem 0' }}>No leave requests yet.</p>
+      ) : (
+        <div className="emp-leave-list">
+          {leaveRequests.map((request: any) => (
+            <div key={request.id} className="emp-leave-card">
+              <div className="emp-leave-header">
+                <div className="emp-leave-type">
+                  <Calendar size={16} />
+                  <span className={`emp-type-badge emp-type-${request.type}`}>
+                    {request.type.charAt(0).toUpperCase() + request.type.slice(1)}
+                  </span>
+                </div>
+                <span className={`emp-leave-status emp-status-${request.status}`}>
+                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                </span>
+              </div>
+              <div className="emp-leave-dates">
+                <span>{new Date(request.startDate).toLocaleDateString()}</span>
+                <span> - </span>
+                <span>{new Date(request.endDate).toLocaleDateString()}</span>
+                <span className="emp-days-count">({request.days} days)</span>
+              </div>
+              <p className="emp-leave-reason">{request.reason}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsSection() {
+  return (
+    <div className="emp-settings">
+      <h2>Settings</h2>
+      <div className="emp-settings-card">
+        <h3>Notification Preferences</h3>
+        <div className="emp-setting-item">
+          <label><input type="checkbox" defaultChecked /> Email notifications for project updates</label>
+        </div>
+        <div className="emp-setting-item">
+          <label><input type="checkbox" defaultChecked /> Daily attendance reminders</label>
+        </div>
+        <div className="emp-setting-item">
+          <label><input type="checkbox" /> Weekly performance reports</label>
+        </div>
+      </div>
+      <div className="emp-settings-card">
+        <h3>Account Settings</h3>
+        <div className="emp-setting-item">
+          <label>Change Password</label>
+          <button className="emp-btn-secondary">Update Password</button>
+        </div>
+        <div className="emp-setting-item">
+          <label>Two-Factor Authentication</label>
+          <button className="emp-btn-secondary">Enable 2FA</button>
+        </div>
+      </div>
+    </div>
+  )
+}

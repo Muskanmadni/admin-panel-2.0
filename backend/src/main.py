@@ -8,17 +8,19 @@ from src.config.settings import settings
 from src.database.session import engine
 from src.models.models import Base
 from src.api import (
-    projects, 
-    tasks, 
-    time_entries, 
-    chat, 
-    payments, 
-    files, 
-    ai,
+    projects,
+    # tasks, 
+    # time_entries, 
+    # chat, 
+    # payments, 
+    # files, 
+    # ai,
     users,
     auth,
+    workflows,
     rbac,
-    dashboard
+    employee_projects,
+    # dashboard
 )
 
 # Setup logging
@@ -65,40 +67,40 @@ def create_application() -> FastAPI:
     api_prefix = settings.API_V1_STR
     
     application.include_router(
-        projects.router, 
-        prefix=f"{api_prefix}/projects", 
+        projects.router,
+        prefix=f"{api_prefix}/projects",
         tags=["Projects"]
     )
-    application.include_router(
-        tasks.router, 
-        prefix=f"{api_prefix}/tasks", 
-        tags=["Tasks"]
-    )
-    application.include_router(
-        time_entries.router, 
-        prefix=f"{api_prefix}/time", 
-        tags=["Time Tracking"]
-    )
-    application.include_router(
-        chat.router, 
-        prefix=f"{api_prefix}/ws", 
-        tags=["Real-time Chat"]
-    )
-    application.include_router(
-        payments.router, 
-        prefix=f"{api_prefix}/payments", 
-        tags=["Payments"]
-    )
-    application.include_router(
-        files.router, 
-        prefix=f"{api_prefix}/files", 
-        tags=["Files"]
-    )
-    application.include_router(
-        ai.router, 
-        prefix=f"{api_prefix}/ai", 
-        tags=["AI Assistance"]
-    )
+    # application.include_router(
+    #     tasks.router, 
+    #     prefix=f"{api_prefix}/tasks", 
+    #     tags=["Tasks"]
+    # )
+    # application.include_router(
+    #     time_entries.router, 
+    #     prefix=f"{api_prefix}/time", 
+    #     tags=["Time Tracking"]
+    # )
+    # application.include_router(
+    #     chat.router, 
+    #     prefix=f"{api_prefix}/ws", 
+    #     tags=["Real-time Chat"]
+    # )
+    # application.include_router(
+    #     payments.router, 
+    #     prefix=f"{api_prefix}/payments", 
+    #     tags=["Payments"]
+    # )
+    # application.include_router(
+    #     files.router, 
+    #     prefix=f"{api_prefix}/files", 
+    #     tags=["Files"]
+    # )
+    # application.include_router(
+    #     ai.router, 
+    #     prefix=f"{api_prefix}/ai", 
+    #     tags=["AI Assistance"]
+    # )
     application.include_router(
         users.router, 
         prefix=f"{api_prefix}/users", 
@@ -110,15 +112,25 @@ def create_application() -> FastAPI:
         tags=["Auth"]
     )
     application.include_router(
+        workflows.router,
+        prefix=f"{api_prefix}/workflows",
+        tags=["Workflows"]
+    )
+    application.include_router(
         rbac.router, 
         prefix=f"{api_prefix}/rbac", 
         tags=["RBAC"]
     )
     application.include_router(
-        dashboard.router,
-        prefix=f"{api_prefix}/dashboard",
-        tags=["Dashboard"]
+        employee_projects.router,
+        prefix=f"{api_prefix}/employee-projects",
+        tags=["Employee Projects"]
     )
+    # application.include_router(
+    #     dashboard.router,
+    #     prefix=f"{api_prefix}/dashboard",
+    #     tags=["Dashboard"]
+    # )
 
     @application.get("/", tags=["System"])
     def root():

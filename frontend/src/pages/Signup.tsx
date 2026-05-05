@@ -4,6 +4,7 @@ import {
   Mail, Lock, Eye, EyeOff, User, Building2, Globe,
   ArrowRight, Check, X, AlertCircle,
 } from 'lucide-react'
+
 import AuthLayout from '../components/AuthLayout'
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
@@ -23,11 +24,10 @@ const checks = [
 export default function Signup({ setIsAuthenticated }: SignupProps) {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const type = searchParams.get('type') === 'organization' ? 'organization' : searchParams.get('type') === 'employee' ? 'employee' : 'individual'
+  const type = searchParams.get('type') === 'employee' ? 'employee' : 'individual'
 
   const [indForm, setIndForm] = useState({ name: '', email: '', password: '', confirm: '' })
-  const [orgForm, setOrgForm] = useState({ orgName: '', subdomain: '', adminName: '', email: '', password: '', confirm: '' })
-  const [empForm, setEmpForm] = useState({ name: '', email: '', password: '', confirm: '', orgCode: '' })
+  const [empForm, setEmpForm] = useState({ name: '', email: '', password: '', confirm: '', orgCode: '', department: '', role: '' })
   const [errors, setErrors]             = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm]   = useState(false)
@@ -44,16 +44,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
       if (!indForm.password)       e.password = 'Password is required'
       else if (indForm.password.length < 8) e.password = 'Min 8 characters'
       if (indForm.confirm !== indForm.password) e.confirm = 'Passwords do not match'
-    } else if (type === 'organization') {
-      if (!orgForm.orgName.trim())   e.orgName   = 'Organization name is required'
-      if (!orgForm.subdomain.trim()) e.subdomain = 'Subdomain is required'
-      else if (!/^[a-z0-9-]+$/.test(orgForm.subdomain)) e.subdomain = 'Lowercase, numbers, hyphens only'
-      if (!orgForm.adminName.trim()) e.adminName = 'Admin full name is required'
-      if (!orgForm.email.trim())     e.email     = 'Email is required'
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(orgForm.email)) e.email = 'Invalid email'
-      if (!orgForm.password)         e.password  = 'Password is required'
-      else if (orgForm.password.length < 8) e.password = 'Min 8 characters'
-      if (orgForm.confirm !== orgForm.password) e.confirm = 'Passwords do not match'
     } else if (type === 'employee') {
       if (!empForm.name.trim())    e.name     = 'Full name is required'
       if (!empForm.email.trim())   e.email    = 'Email is required'
@@ -76,9 +66,9 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
     setIsLoading(true)
 
     try {
-      const email    = type === 'individual' ? indForm.email    : type === 'employee' ? empForm.email : orgForm.email
-      const password = type === 'individual' ? indForm.password : type === 'employee' ? empForm.password : orgForm.password
-      const name     = type === 'individual' ? indForm.name     : type === 'employee' ? empForm.name : orgForm.adminName
+      const email    = type === 'individual' ? indForm.email    : empForm.email
+      const password = type === 'individual' ? indForm.password : empForm.password
+      const name     = type === 'individual' ? indForm.name     : empForm.name
 
       // ── STEP 1: Create Supabase Auth account ─────────────────────────────
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -88,8 +78,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
           data: {
             full_name:    name,
             account_type: type,
-            org_name:     type === 'organization' ? orgForm.orgName   : undefined,
-            subdomain:    type === 'organization' ? orgForm.subdomain : undefined,
             org_code:     type === 'employee' ? empForm.orgCode : undefined,
           },
         },
@@ -125,8 +113,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
         email,
         role:         assignedRole,
         account_type: type,
-        org_name:     type === 'organization' ? orgForm.orgName   : undefined,
-        subdomain:    type === 'organization' ? orgForm.subdomain : undefined,
         org_code:     type === 'employee' ? empForm.orgCode : undefined,
       })
 
@@ -143,12 +129,10 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
           full_name:  name,
           user_type:  type,
           role:       assignedRole,
-          // Organization fields
-          org_name:   type === 'organization' ? orgForm.orgName   : undefined,
-          subdomain:  type === 'organization' ? orgForm.subdomain : undefined,
           // Employee fields
           org_code:   type === 'employee' ? empForm.orgCode : undefined,
-          // Individual fields (can add more if needed)
+          department: type === 'employee' ? empForm.department : undefined,
+          position:   type === 'employee' ? empForm.role : undefined,
         })
         console.log('✅ User synced to Neon database')
       } catch (err) {
@@ -194,8 +178,8 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
   // ── Signup form ───────────────────────────────────────────────────────────
   return (
     <AuthLayout
-      title={type === 'individual' ? 'Create Account' : type === 'employee' ? 'Join as Employee' : 'Create Organization'}
-      subtitle={type === 'individual' ? "Join us today — it's free" : type === 'employee' ? 'Join your organization using code' : 'Set up your team workspace'}
+      title={type === 'individual' ? 'Create Account' : 'Join as Employee'}
+      subtitle={type === 'individual' ? "Join us today — it's free" : 'Join your organization using code'}
     >
       <div className="account-type-pills">
         <Link to="/signup?type=individual"   className={`pill ${type === 'individual'   ? 'pill-active' : ''}`}>
@@ -203,9 +187,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
         </Link>
         <Link to="/signup?type=employee" className={`pill ${type === 'employee' ? 'pill-active' : ''}`}>
           💼 Employee
-        </Link>
-        <Link to="/signup?type=organization" className={`pill ${type === 'organization' ? 'pill-active' : ''}`}>
-          🏢 Organization
         </Link>
       </div>
 
@@ -263,9 +244,21 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
           </Field>
 
           <Field label="Organization Code" icon={<Globe size={20} />} error={errors.orgCode}>
-            <input type="text" value={empForm.orgCode} placeholder="madni"
+            <input type="text" value={empForm.orgCode} placeholder="e.g. 0022"
               className={errors.orgCode ? 'error' : ''}
               onChange={e => { setEmpForm(p => ({ ...p, orgCode: e.target.value.toLowerCase() })); setErrors(p => ({ ...p, orgCode: '' })) }} />
+          </Field>
+
+          <Field label="Department" icon={<Building2 size={20} />} error={errors.department}>
+            <input type="text" value={empForm.department} placeholder="Engineering"
+              className={errors.department ? 'error' : ''}
+              onChange={e => { setEmpForm(p => ({ ...p, department: e.target.value })); setErrors(p => ({ ...p, department: '' })) }} />
+          </Field>
+
+          <Field label="Role" icon={<User size={20} />} error={errors.role}>
+            <input type="text" value={empForm.role} placeholder="Senior Engineer"
+              className={errors.role ? 'error' : ''}
+              onChange={e => { setEmpForm(p => ({ ...p, role: e.target.value })); setErrors(p => ({ ...p, role: '' })) }} />
           </Field>
 
           <Field label="Email Address" icon={<Mail size={20} />} error={errors.email}>
@@ -288,50 +281,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
             <input type={showConfirm ? 'text' : 'password'} value={empForm.confirm}
               placeholder="••••••••" className={errors.confirm ? 'error' : ''}
               onChange={e => { setEmpForm(p => ({ ...p, confirm: e.target.value })); setErrors(p => ({ ...p, confirm: '' })) }} />
-          </Field>
-        </>)}
-
-        {/* ORGANIZATION FORM */}
-        {type === 'organization' && (<>
-          <Field label="Organization Name" icon={<Building2 size={20} />} error={errors.orgName}>
-            <input type="text" value={orgForm.orgName} placeholder="Acme Corp"
-              className={errors.orgName ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, orgName: e.target.value })); setErrors(p => ({ ...p, orgName: '' })) }} />
-          </Field>
-
-          <Field label="Subdomain" icon={<Globe size={20} />} error={errors.subdomain}>
-            <input type="text" value={orgForm.subdomain} placeholder="acme"
-              className={errors.subdomain ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, subdomain: e.target.value.toLowerCase() })); setErrors(p => ({ ...p, subdomain: '' })) }} />
-            {orgForm.subdomain && <span className="subdomain-preview">{orgForm.subdomain}.yourapp.com</span>}
-          </Field>
-
-          <Field label="Admin Full Name" icon={<User size={20} />} error={errors.adminName}>
-            <input type="text" value={orgForm.adminName} placeholder="John Smith"
-              className={errors.adminName ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, adminName: e.target.value })); setErrors(p => ({ ...p, adminName: '' })) }} />
-          </Field>
-
-          <Field label="Admin Email" icon={<Mail size={20} />} error={errors.email}>
-            <input type="email" value={orgForm.email} placeholder="admin@acme.com"
-              className={errors.email ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, email: e.target.value })); setErrors(p => ({ ...p, email: '' })) }} />
-          </Field>
-
-          <Field label="Password" icon={<Lock size={20} />} error={errors.password}
-            toggle={<ToggleBtn show={showPassword} onClick={() => setShowPassword(p => !p)} />}>
-            <input type={showPassword ? 'text' : 'password'} value={orgForm.password}
-              placeholder="••••••••" className={errors.password ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, password: e.target.value })); setErrors(p => ({ ...p, password: '' })) }} />
-          </Field>
-
-          <PasswordChecklist password={orgForm.password} />
-
-          <Field label="Confirm Password" icon={<Lock size={20} />} error={errors.confirm}
-            toggle={<ToggleBtn show={showConfirm} onClick={() => setShowConfirm(p => !p)} />}>
-            <input type={showConfirm ? 'text' : 'password'} value={orgForm.confirm}
-              placeholder="••••••••" className={errors.confirm ? 'error' : ''}
-              onChange={e => { setOrgForm(p => ({ ...p, confirm: e.target.value })); setErrors(p => ({ ...p, confirm: '' })) }} />
           </Field>
         </>)}
 

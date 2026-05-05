@@ -1,17 +1,24 @@
 from src.database.base_class import Base
+from .employee import Employee, EmployeeProject
 from .models import (
     Tenant,
     User,
-    Project,
-    Task,
-    TimeEntry,
-    Screenshot,
-    Invoice,
-    Payment,
-    Notification,
-    Message,
-    File,
-    LeaveRequest,
+    IndividualUser,
     RBACRole,
-    RBACTempAccess
+    RBACTempAccess,
 )
+from .workflow import Project
+
+# TODO: Add other models
+# Project,
+# Task,
+# TimeEntry,
+# Screenshot,
+# Invoice,
+# Payment,
+# Notification,
+# Message,
+# File,
+# LeaveRequest,
+# RBACRole,
+# RBACTempAccess

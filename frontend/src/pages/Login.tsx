@@ -90,8 +90,17 @@ export default function Login({ setIsAuthenticated }: LoginProps) {
         } catch {
           // Ignore sync errors on login
         }
-        setIsAuthenticated(true)
-        navigate('/dashboard')
+
+        // Fetch role and redirect accordingly
+        try {
+          const me = await api.get<{ role: string }>('/users/me')
+          const isAdmin = me.role === 'admin' || me.role === 'super_admin'
+          setIsAuthenticated(true)
+          navigate(isAdmin ? '/dashboard' : '/employee-dashboard')
+        } catch {
+          setIsAuthenticated(true)
+          navigate('/employee-dashboard')
+        }
       }
     } catch {
       setErrors({ email: 'An error occurred. Please try again.' })

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 
 from src.api import deps
-from src.models.models import User, Tenant, OrganizationalUser, IndividualUser
+from src.models import User, Tenant, IndividualUser, Employee
 
 router = APIRouter()
 
@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     # Profile details
     organization_name: Optional[str] = None
     subdomain: Optional[str] = None
+    org_code: Optional[str] = None
     department: Optional[str] = None
     position: Optional[str] = None
     phone_number: Optional[str] = None
@@ -31,11 +32,9 @@ class UnifiedRegister(BaseModel):
     user_id: UUID  # Supabase User ID
     email: str
     full_name: Optional[str] = None
-    user_type: str  # 'individual', 'organizational', or 'employee'
+    user_type: str  # 'individual' or 'employee'
     role: str = "employee"
-    # Organization specific
-    org_name: Optional[str] = None
-    subdomain: Optional[str] = None
+    # Employee specific
     org_code: Optional[str] = None
     department: Optional[str] = None
     position: Optional[str] = None
@@ -67,49 +66,22 @@ def register_user(
         db.add(user)
         db.flush() # Get user.id
 
-        if user_data.user_type in ('organization', 'organizational'):
-            # 2a. Handle Organizational User
-            if not user_data.org_name:
-                raise HTTPException(status_code=400, detail="Organization name is required for organization type")
-            
-            # Find or create Tenant
-            slug = user_data.subdomain or user_data.org_name.lower().replace(" ", "-")
-            tenant = db.query(Tenant).filter(Tenant.slug == slug).first()
-            if not tenant:
-                tenant = Tenant(
-                    name=user_data.org_name,
-                    slug=slug,
-                    is_active=True
-                )
-                db.add(tenant)
-                db.flush()
-            
-            org_profile = OrganizationalUser(
-                user_id=user.id,
-                tenant_id=tenant.id,
-                department=user_data.department,
-                position=user_data.position
-            )
-            db.add(org_profile)
-            # Link user to tenant
-            user.tenant_id = tenant.id
-        
-        elif user_data.user_type == 'employee':
-            # 2c. Handle Employee User - lookup tenant by org_code (subdomain)
+        if user_data.user_type == 'employee':
+            # Handle Employee User - lookup tenant by org_code
             if not user_data.org_code:
                 raise HTTPException(status_code=400, detail="Organization code is required for employee type")
             
-            tenant = db.query(Tenant).filter(Tenant.slug == user_data.org_code).first()
+            tenant = db.query(Tenant).filter(Tenant.org_code == user_data.org_code).first()
             if not tenant:
                 raise HTTPException(status_code=404, detail="Organization not found. Check your organization code.")
             
-            org_profile = OrganizationalUser(
+            employee_profile = Employee(
                 user_id=user.id,
-                tenant_id=tenant.id,
                 department=user_data.department,
-                position=user_data.position
+                role=user_data.position or user_data.role
             )
-            db.add(org_profile)
+            db.add(employee_profile)
+
             # Link user to tenant
             user.tenant_id = tenant.id
         
@@ -122,14 +94,20 @@ def register_user(
             )
             db.add(ind_profile)
         else:
-            raise HTTPException(status_code=400, detail="Invalid user_type. Use 'individual', 'employee', or 'organizational'.")
+            raise HTTPException(status_code=400, detail="Invalid user_type. Use 'individual' or 'employee'.")
 
         db.commit()
         db.refresh(user)
         return user
 
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
+        import traceback
+        import logging
+        logging.getLogger(__name__).error(f"Register error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Database sync failed: {str(e)}")
 
 @router.get("/me", response_model=UserResponse)
@@ -148,16 +126,7 @@ def get_current_user_info(
         "is_active": current_user.is_active,
     }
 
-    if current_user.user_type == 'organization':
-        profile = db.query(OrganizationalUser).filter(OrganizationalUser.user_id == current_user.id).first()
-        if profile:
-            response_data.update({
-                "department": profile.department,
-                "position": profile.position,
-                "organization_name": profile.tenant.name if profile.tenant else None,
-                "subdomain": profile.tenant.slug if profile.tenant else None
-            })
-    else:
+    if current_user.user_type == 'individual':
         profile = db.query(IndividualUser).filter(IndividualUser.user_id == current_user.id).first()
         if profile:
             response_data.update({

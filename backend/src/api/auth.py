@@ -8,7 +8,7 @@ from jose import jwt
 
 from src.config.settings import settings
 from src.database.session import SessionLocal
-from src.models.models import User, OrganizationalUser, IndividualUser, Tenant
+from src.models.models import User, IndividualUser, Tenant
 
 router = APIRouter()
 
@@ -44,72 +44,6 @@ def login(supabase_user_id: str):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is inactive"
             )
-        
-        access_token = create_access_token(
-            data={"sub": str(user.id), "role": user.role, "user_type": user.user_type}
-        )
-        
-        return Token(
-            access_token=access_token,
-            token_type="bearer",
-            user_id=str(user.id),
-            role=user.role,
-            user_type=user.user_type
-        )
-    finally:
-        db.close()
-
-@router.post("/register/organizational", response_model=Token)
-def register_organizational(
-    supabase_user_id: str,
-    email: str,
-    tenant_name: str,
-    full_name: Optional[str] = None,
-    department: Optional[str] = None,
-    position: Optional[str] = None
-):
-    """Register a new organizational user."""
-    db = SessionLocal()
-    try:
-        existing_user = db.query(User).filter(
-            (User.email == email) | (User.supabase_user_id == UUID(supabase_user_id))
-        ).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email or Supabase user ID already registered"
-            )
-        
-        # Create or get tenant
-        tenant = db.query(Tenant).filter(Tenant.name == tenant_name).first()
-        if not tenant:
-            tenant = Tenant(name=tenant_name, slug=tenant_name.lower().replace(" ", "-"))
-            db.add(tenant)
-            db.commit()
-            db.refresh(tenant)
-        
-        # Create user
-        user = User(
-            supabase_user_id=UUID(supabase_user_id),
-            email=email,
-            full_name=full_name,
-            user_type="organizational",
-            role="employee",
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        # Create organizational profile
-        org_user = OrganizationalUser(
-            user_id=user.id,
-            tenant_id=tenant.id,
-            department=department,
-            position=position
-        )
-        db.add(org_user)
-        db.commit()
         
         access_token = create_access_token(
             data={"sub": str(user.id), "role": user.role, "user_type": user.user_type}
