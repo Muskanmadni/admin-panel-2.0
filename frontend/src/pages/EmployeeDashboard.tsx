@@ -61,6 +61,23 @@ export default function EmployeeDashboard() {
   const [activeSection, setActiveSection] = useState('overview')
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [notifications, setNotifications] = useState<{ id: string; message: string; is_read: boolean; created_at: string }[]>([])
+
+  const unreadCount = notifications.filter(n => !n.is_read).length
+
+  const fetchNotifications = async () => {
+    try {
+      const data = await api.get<any[]>('/leave/notifications/my')
+      setNotifications(data)
+    } catch { /* ignore */ }
+  }
+
+  const markRead = async (id: string) => {
+    try {
+      await api.post(`/leave/notifications/${id}/read`, {})
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    } catch { /* ignore */ }
+  }
 
   const [projects, setProjects] = useState<Project[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
@@ -115,6 +132,42 @@ export default function EmployeeDashboard() {
         } catch {
           // no projects yet
         }
+
+        // Fetch leave requests
+        try {
+          const leavesData = await api.get<any[]>('/leave/my')
+          setLeaveRequests(leavesData.map(l => ({
+            id: l.id,
+            type: l.type,
+            startDate: l.start_date,
+            endDate: l.end_date,
+            reason: l.reason,
+            status: l.status,
+            days: l.days,
+          })))
+        } catch {
+          // no leaves yet
+        }
+
+        // Fetch attendance
+        try {
+          const attData = await api.get<any[]>('/attendance/my')
+          setAttendance(attData.map(r => ({
+            date: r.date,
+            checkIn: r.check_in || '',
+            checkOut: r.check_out || '',
+            status: r.status,
+            hours: r.hours,
+          })))
+        } catch {
+          // no attendance yet
+        }
+
+        // Fetch notifications
+        try {
+          const notifData = await api.get<any[]>('/leave/notifications/my')
+          setNotifications(notifData)
+        } catch { /* ignore */ }
       } catch (error) {
         console.error('Error fetching user data:', error)
       } finally {
@@ -125,38 +178,59 @@ export default function EmployeeDashboard() {
     fetchUserData()
   }, [navigate])
 
-  const handleCheckIn = () => {
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    const time = now.toTimeString().split(' ')[0].substring(0, 5)
-    setAttendance(prev => [
-      { date: today, checkIn: time, checkOut: '', status: 'present', hours: 0 },
-      ...prev.filter(r => r.date !== today)
-    ])
+  const handleCheckIn = async () => {
+    try {
+      const d = new Date()
+      const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      const record = await api.post<any>('/attendance/check-in', { date: localDate })
+      setAttendance(prev => [
+        { date: record.date, checkIn: record.check_in, checkOut: record.check_out || '', status: record.status, hours: record.hours },
+        ...prev.filter(r => r.date !== record.date)
+      ])
+    } catch (err: any) {
+      alert(err.message || 'Check-in failed')
+    }
   }
 
-  const handleCheckOut = () => {
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
-    const time = now.toTimeString().split(' ')[0].substring(0, 5)
-    setAttendance(prev => prev.map(r => {
-      if (r.date === today) {
-        const hours = (new Date(`${today} ${time}`).getTime() - new Date(`${today} ${r.checkIn}`).getTime()) / 3600000
-        return { ...r, checkOut: time, hours: Math.round(hours * 100) / 100 }
-      }
-      return r
-    }))
+  const handleCheckOut = async () => {
+    try {
+      const d = new Date()
+      const localDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      const record = await api.post<any>('/attendance/check-out', { date: localDate })
+      setAttendance(prev => prev.map(r =>
+        r.date === record.date
+          ? { ...r, checkOut: record.check_out, hours: record.hours }
+          : r
+      ))
+    } catch (err: any) {
+      alert(err.message || 'Check-out failed')
+    }
   }
 
-  const handleLeaveRequest = () => {
+  const handleLeaveRequest = async () => {
     if (!newLeave.startDate || !newLeave.endDate || !newLeave.reason) return
     const days = Math.ceil((new Date(newLeave.endDate).getTime() - new Date(newLeave.startDate).getTime()) / 86400000) + 1
-    setLeaveRequests(prev => [{
-      id: Date.now().toString(),
-      ...newLeave,
-      status: 'pending',
-      days
-    }, ...prev])
+    try {
+      const created = await api.post<any>('/leave/', {
+        type: newLeave.type,
+        start_date: newLeave.startDate,
+        end_date: newLeave.endDate,
+        reason: newLeave.reason,
+        days,
+      })
+      setLeaveRequests(prev => [{
+        id: created.id,
+        type: created.type,
+        startDate: created.start_date,
+        endDate: created.end_date,
+        reason: created.reason,
+        status: created.status,
+        days: created.days,
+      }, ...prev])
+    } catch (err) {
+      console.error('Failed to submit leave request:', err)
+      alert('Failed to submit leave request')
+    }
     setNewLeave({ type: 'vacation', startDate: '', endDate: '', reason: '' })
     setShowLeaveModal(false)
   }
@@ -195,7 +269,7 @@ export default function EmployeeDashboard() {
     { id: 'settings',    icon: <Settings size={20} />, label: 'Settings' },
   ]
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const todayAttendance = attendance.find(r => r.date === today)
   const canCheckIn = !todayAttendance?.checkIn
   const canCheckOut = !!(todayAttendance?.checkIn && !todayAttendance?.checkOut)
@@ -265,10 +339,42 @@ export default function EmployeeDashboard() {
             <p className="emp-header-subtitle">Here's what's happening with your work today</p>
           </div>
           <div className="emp-header-right">
-            <button className="emp-notification-btn" onClick={() => setShowNotifications(!showNotifications)}>
-              <Bell size={20} />
-              <span className="emp-notification-dot"></span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className="emp-notification-btn" onClick={() => { setShowNotifications(!showNotifications); fetchNotifications() }}>
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -4, right: -4, background: '#ef4444',
+                    color: '#fff', borderRadius: '50%', width: 18, height: 18,
+                    fontSize: '0.65rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>{unreadCount}</span>
+                )}
+              </button>
+              {showNotifications && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '110%', width: 320, background: '#1e293b',
+                  border: '1px solid #334155', borderRadius: 12, zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  maxHeight: 360, overflowY: 'auto'
+                }}>
+                  <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #334155', fontWeight: 700, fontSize: '0.9rem' }}>
+                    Notifications
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>No notifications</div>
+                  ) : notifications.map(n => (
+                    <div key={n.id} onClick={() => markRead(n.id)} style={{
+                      padding: '0.75rem 1rem', borderBottom: '1px solid #1e293b',
+                      background: n.is_read ? 'transparent' : '#0f172a',
+                      cursor: 'pointer', fontSize: '0.82rem', color: n.is_read ? '#64748b' : '#e2e8f0',
+                      display: 'flex', gap: '0.5rem', alignItems: 'flex-start'
+                    }}>
+                      {!n.is_read && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3b82f6', marginTop: 5, flexShrink: 0 }} />}
+                      <span style={{ flex: 1 }}>{n.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="emp-profile-menu">
               <button className="emp-profile-btn" onClick={() => setShowProfileMenu(!showProfileMenu)}>
                 <div className="emp-avatar-small">{user?.name?.charAt(0).toUpperCase()}</div>

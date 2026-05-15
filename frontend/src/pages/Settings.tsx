@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useSettings, applyThemeVars, OrgSettings } from '../lib/SettingsContext'  // ← NEW
+import AdminSidebar from '../components/AdminSidebar'
 import '../styles/Settings.css'
 
 const THEMES = [
@@ -116,40 +117,7 @@ export default function Settings() {
       </div>
 
       {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <div className="dash-logo">
-          <div className="dash-logo-img-wrap">
-            <img src={logoPreview} alt="Logo" className="dash-logo-img" onError={e => { e.currentTarget.style.display = 'none' }} />
-            <div className="dash-logo-glow" />
-          </div>
-          <div>
-            <span className="dash-logo-name">{settings.orgName}</span>
-            <span className="dash-logo-sub">{settings.orgTagline}</span>
-          </div>
-        </div>
-        <nav className="dash-nav">
-          {[
-            { icon: <Home size={18} />,        label: 'Dashboard', path: '/dashboard' },
-            { icon: <Users size={18} />,        label: 'Users',     path: '/users' },
-            { icon: <BarChart2 size={18} />,    label: 'Workflows', path: '#' },
-            { icon: <Clock size={18} />,        label: 'Pending',   path: '#' },
-            { icon: <SettingsIcon size={18} />, label: 'Settings',  path: '/settings', active: true },
-          ].map((item, i) => (
-            <a key={i} href={item.path}
-              onClick={item.path !== '#' ? e => { e.preventDefault(); navigate(item.path) } : undefined}
-              className={`dash-nav-item${item.active ? ' active' : ''}`}>
-              {item.icon}<span>{item.label}</span>
-              {item.active && <ChevronRight size={14} className="dash-nav-arrow" />}
-            </a>
-          ))}
-        </nav>
-        <div className="dash-sidebar-footer">
-          <div className="dash-user-mini">
-            <div className="dash-avatar-sm">{user?.name?.charAt(0).toUpperCase()}</div>
-            <div><p className="dash-mini-name">{user?.name}</p><p className="dash-mini-email">{user?.email}</p></div>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar />
 
       {/* Main */}
       <main className="dash-main">

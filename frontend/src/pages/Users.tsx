@@ -11,6 +11,8 @@ import {
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
 import { logActivity } from '../lib/activity'
+import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
+import AdminSidebar from '../components/AdminSidebar'
 
 import '../styles/Dashboard.css'
 import '../styles/Users.css'
@@ -83,24 +85,6 @@ export const getOnlineStatus = (isOnline: boolean, lastSeen: string | null) => {
 };
 
 export type Role = 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer' | string;
-
-export const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-  manager: 'Manager',
-  editor: 'Editor',
-  viewer: 'Viewer',
-  employee: 'Employee',
-};
-
-export const ROLE_COLORS: Record<string, string> = {
-  super_admin: '#ef4444',
-  admin: '#f97316',
-  manager: '#eab308',
-  editor: '#22c55e',
-  viewer: '#6b7280',
-  employee: '#3b82f6',
-};
 
 // ============================================================================
 // 2. LOCAL RBAC MOCKS & PLACEHOLDERS
@@ -273,15 +257,6 @@ export default function Users() {
     (u.name && u.name.toLowerCase().includes(search.toLowerCase()))
   )
 
-  const navItems = [
-    { icon: <Home size={18} />, label: 'Dashboard', path: '/dashboard' },
-    { icon: <UsersIcon size={18} />, label: 'Users', path: '/users', active: true },
-    { icon: <BarChart2 size={18} />, label: 'Workflows', path: '#' },
-    { icon: <Clock size={18} />, label: 'Pending', path: '#' },
-    { icon: <Shield size={18} />, label: 'RBAC Access', path: '/rbac' },
-    { icon: <Settings size={18} />, label: 'Settings', path: '/settings' },
-  ]
-
   const roleStats = {
     total: users.length,
     admins: users.filter(u => ['super_admin', 'admin'].includes(u.role)).length,
@@ -307,44 +282,7 @@ export default function Users() {
         <div className="dash-grid" />
       </div>
 
-      <aside className="dash-sidebar">
-        <div className="dash-logo">
-          <div className="dash-logo-img-wrap">
-            <img src="/logo.png" alt="Logo" className="dash-logo-img" onError={e => { e.currentTarget.style.display = 'none' }} />
-            <div className="dash-logo-glow" />
-          </div>
-          <div><span className="dash-logo-name">ClickTake</span><span className="dash-logo-sub">Admin Panel</span></div>
-        </div>
-
-        <nav className="dash-nav">
-          {navItems.map((item, i) => (
-            <a key={i} href={item.path}
-              onClick={e => { e.preventDefault(); if (item.path !== '#') navigate(item.path) }}
-              className={`dash-nav-item${item.active ? ' active' : ''}`}>
-              {item.icon}<span>{item.label}</span>
-              {item.active && <ChevronRight size={14} className="dash-nav-arrow" />}
-            </a>
-          ))}
-        </nav>
-
-        <div className="dash-sidebar-footer">
-          <div className="dash-user-mini">
-            <div className="dash-avatar-sm">
-              {currentUser?.name?.charAt(0).toUpperCase()}
-              <div className="status-indicator-online"></div>
-            </div>
-            <div>
-              <p className="dash-mini-name">{currentUser?.name}</p>
-              <p className="dash-mini-email">{currentUser?.email}</p>
-            </div>
-          </div>
-          {myRole && (
-            <div className="dash-role-badge" style={{ background: `${ROLE_COLORS[myRole] || '#fff'}22`, color: ROLE_COLORS[myRole] || '#fff', border: `1px solid ${ROLE_COLORS[myRole] || '#fff'}44` }}>
-              {ROLE_LABELS[myRole] || 'User'}
-            </div>
-          )}
-        </div>
-      </aside>
+      <AdminSidebar />
 
       <main className="dash-main">
         <header className="dash-topbar">
@@ -371,17 +309,6 @@ export default function Users() {
         </header>
 
         <div className="dash-content">
-          {debugInfo && (
-            <div style={{ background: '#7f1d1d22', border: '1px solid #ef444433', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 12, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <AlertCircle size={14} />
-              <span><strong>Debug:</strong> {debugInfo}</span>
-              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                <button onClick={() => setForceRole('admin')} style={{ background: '#f97316', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>Set Admin</button>
-                <button onClick={() => setForceRole('super_admin')} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>Set SuperAdmin</button>
-                <button onClick={() => setForceRole(null)} style={{ background: '#6b7280', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}>Clear</button>
-              </div>
-            </div>
-          )}
 
           {/* TAB NAVIGATION */}
           {(myRole === 'super_admin' || myRole === 'admin' || myRole === 'manager') && (

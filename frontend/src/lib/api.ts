@@ -80,4 +80,20 @@ export const api = {
 
     return response.json();
   },
+
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
+    const headers = await getHeaders();
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers,
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || 'API request failed');
+    }
+
+    return response.json();
+  },
 };

@@ -5,11 +5,13 @@ import {
   Eye, Edit, MoreVertical, Flag, Building2, DollarSign, Tag, UserPlus
 } from 'lucide-react'
 import BackButton from '../components/BackButton'
+import AdminSidebar from '../components/AdminSidebar'
 import { useSettings } from '../lib/SettingsContext'
 import { api } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import "../styles/workflows.css"
 import '../styles/workflowsidebar.css'
+import '../styles/Dashboard.css'
 
 // Types
 interface Project {
@@ -40,9 +42,11 @@ export default function Workflows() {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', status: 'pending', priority: 'medium', assignee: '', client: '', category: '', start_date: '', end_date: '', budget: '', tags: '', progress: 0 })
+  const [formEmployees, setFormEmployees] = useState<{ id: string; full_name: string; email: string; position?: string; department?: string }[]>([])
+  const [loadingFormEmployees, setLoadingFormEmployees] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [assignModal, setAssignModal] = useState<{ projectId: string; projectName: string } | null>(null)
-  const [employees, setEmployees] = useState<{ id: string; full_name: string; email: string; role?: string; department?: string }[]>([])
+  const [employees, setEmployees] = useState<{ id: string; full_name: string; email: string; role?: string; position?: string; department?: string; _isBestMatch?: boolean }[]>([])
   const [assigningTo, setAssigningTo] = useState('')
   const [assignMsg, setAssignMsg] = useState('')
   const [loadingEmployees, setLoadingEmployees] = useState(false)
@@ -184,18 +188,42 @@ export default function Workflows() {
     setAssignMsg('')
     setLoadingEmployees(true)
     try {
-      const data = await api.get<any[]>(`/employee-projects/filter-employees?project_id=${projectId}`)
-      if (data && data.length > 0) {
-        setEmployees(data)
-      } else {
-        const all = await api.get<any[]>('/users/')
-        setEmployees(all.filter((u: any) => u.user_type === 'employee' || u.role === 'employee'))
+      const [filteredRes, allRes] = await Promise.allSettled([
+        api.get<any[]>(`/employee-projects/filter-employees?project_id=${projectId}`),
+        api.get<any[]>('/users/')
+      ])
+
+      const allEmployees = allRes.status === 'fulfilled'
+        ? allRes.value.filter((u: any) => u.user_type === 'employee' || u.role === 'employee')
+        : []
+
+      // Build a map of id -> {role, department} from filter-employees (has proper job role)
+      const roleMap: Record<string, { role: string; department?: string }> = {}
+      if (filteredRes.status === 'fulfilled') {
+        for (const e of filteredRes.value) {
+          roleMap[e.id] = { role: e.role, department: e.department }
+        }
       }
+
+      const bestMatchId = filteredRes.status === 'fulfilled' && filteredRes.value.length > 0
+        ? filteredRes.value[0].id : null
+
+      const merged = allEmployees
+        .map(e => ({
+          ...e,
+          role: roleMap[e.id]?.role ?? e.role,
+          department: roleMap[e.id]?.department ?? e.department,
+          _isBestMatch: e.id === bestMatchId,
+        }))
+        .sort((a, b) => {
+          if (a._isBestMatch) return -1
+          if (b._isBestMatch) return 1
+          return (a.full_name || a.email).localeCompare(b.full_name || b.email)
+        })
+
+      setEmployees(merged)
     } catch {
-      try {
-        const all = await api.get<any[]>('/users/')
-        setEmployees(all.filter((u: any) => u.user_type === 'employee' || u.role === 'employee'))
-      } catch { setEmployees([]) }
+      setEmployees([])
     } finally {
       setLoadingEmployees(false)
     }
@@ -205,6 +233,9 @@ export default function Workflows() {
     if (!assignModal || !assigningTo) return
     try {
       await api.post('/employee-projects/assign', { employee_id: assigningTo, project_id: assignModal.projectId })
+      const emp = employees.find(e => e.id === assigningTo)
+      const empName = emp?.full_name || emp?.email || ''
+      setProjects(prev => prev.map(p => p.id === assignModal.projectId ? { ...p, assignee: empName } : p))
       setAssignMsg('✅ Project assigned successfully!')
       setTimeout(() => setAssignModal(null), 1200)
     } catch (err: any) {
@@ -214,7 +245,7 @@ export default function Workflows() {
 
   return (
     <>
-    <div className="clicktake-workflows">
+    <div className="dash-wrapper clicktake-workflows">
       {/* 3D Particle Effects */}
       <div className="particle-container">
         {[...Array(20)].map((_, i) => (
@@ -231,74 +262,10 @@ export default function Workflows() {
       </div>
 
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo-section">
-            <div className="logo-wrapper">
-              <img 
-                src={settings.logoUrl || '/logo.png'} 
-                alt={settings.orgName || 'CLICKTAKETECH'}
-                className="logo-image"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement
-                  if (fallback) fallback.style.display = 'flex'
-                }}
-              />
-              <div className="logo-fallback" style={{ display: 'none' }}>
-                <span className="logo-text">{settings.orgName || 'CLICKTAKETECH'}</span>
-              </div>
-            </div>
-            <span className="admin-label">{settings.orgTagline || 'Admin Panel'}</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <a href="/dashboard" className="nav-link">
-            <Grid size={20} />
-            <span>Dashboard</span>
-          </a>
-          <a href="/users" className="nav-link">
-            <User size={20} />
-            <span>Users</span>
-          </a>
-          <a href="/workflows" className="nav-link active">
-            <Briefcase size={20} />
-            <span>Workflows</span>
-          </a>
-          <a href="/admin/assignments" className="nav-link">
-            <UserPlus size={20} />
-            <span>Assignments</span>
-          </a>
-          <a href="/rbac" className="nav-link">
-            <Flag size={20} />
-            <span>RBAC Access</span>
-          </a>
-          <a href="/settings" className="nav-link">
-            <Search size={20} />
-            <span>Settings</span>
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">
-          <div className="user-section">
-            <div className="user-avatar">
-              <User size={24} />
-            </div>
-            <div className="user-info">
-              <div className="user-name">{user?.name || 'Loading...'}</div>
-              <div className="user-email">{user?.email || 'Loading...'}</div>
-              <div className="user-badges">
-                <span className="online-badge">ONLINE</span>
-                <span className="role-badge">SUPER ADMIN</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar />
 
       {/* Main Content */}
-      <main className="main-content">
+      <main className="dash-main main-content">
         {/* Stats Cards */}
         <div className="stats-container">
           <div 
@@ -394,7 +361,15 @@ export default function Workflows() {
             <option value="assigned">Assigned</option>
           </select>
 
-          <button className="add-project-btn" onClick={() => setShowModal(true)}>
+          <button className="add-project-btn" onClick={async () => {
+            setShowModal(true)
+            setLoadingFormEmployees(true)
+            try {
+              const all = await api.get<any[]>('/users/')
+              setFormEmployees(all.filter((u: any) => u.user_type === 'employee' || u.role === 'employee'))
+            } catch { setFormEmployees([]) }
+            finally { setLoadingFormEmployees(false) }
+          }}>
             <Plus size={20} />
             Add Project
           </button>
@@ -539,7 +514,14 @@ export default function Workflows() {
               <div className="form-grid">
                 <div className="form-row">
                   <label>Assignee</label>
-                  <input value={form.assignee} onChange={e => setForm({...form, assignee: e.target.value})} placeholder="Assignee name" />
+                  <select value={form.assignee} onChange={e => setForm({...form, assignee: e.target.value})} disabled={loadingFormEmployees}>
+                    <option value="">{loadingFormEmployees ? 'Loading...' : '-- Select employee --'}</option>
+                    {formEmployees.map(emp => (
+                      <option key={emp.id} value={emp.full_name || emp.email}>
+                        {emp.full_name || emp.email}{emp.position ? ` (${emp.position}${emp.department ? ' · ' + emp.department : ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-row">
                   <label>Client</label>
@@ -598,10 +580,10 @@ export default function Workflows() {
               disabled={loadingEmployees}
             >
               <option value="">{loadingEmployees ? 'Loading employees...' : employees.length === 0 ? 'No employees found' : '-- Choose employee --'}</option>
-              {employees.map((emp, idx) => (
+              {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
-                  {idx === 0 ? '⭐ ' : ''}{emp.full_name || emp.email}
-                  {emp.role ? ` (${emp.role}${emp.department ? ' · ' + emp.department : ''})` : ''}
+                  {emp._isBestMatch ? '⭐ ' : ''}{emp.full_name || emp.email}
+                  {emp.position ? ` (${emp.position}${emp.department ? ' · ' + emp.department : ''})` : emp.department ? ` (${emp.department})` : ''}
                 </option>
               ))}
             </select>

@@ -609,20 +609,6 @@ export default function RBACPage() {
                 Only Super Admins and Admins can manage RBAC settings.
                 Contact your administrator for role changes.
               </p>
-              <button 
-                onClick={() => setCurrentUserRole('admin')}
-                style={{
-                  marginTop: 16,
-                  background: "rgba(239,68,68,0.1)", 
-                  color: "#ef4444",
-                  border: "1px solid rgba(239,68,68,0.2)", 
-                  borderRadius: 8,
-                  padding: "8px 16px", 
-                  cursor: "pointer",
-                }}
-              >
-                Debug: Set as Admin
-              </button>
             </div>
           </div>
         )}

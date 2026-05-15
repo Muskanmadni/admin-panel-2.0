@@ -10,6 +10,7 @@ import {
 import { supabase, dbHelpers } from '../lib/supabase'
 import { getActivityLogs, ActivityLog, timeAgo, ACTION_ICONS } from '../lib/activity'
 import { api } from '../lib/api'
+import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
 import '../styles/Dashboard.css'
 
 // ==========================================================
@@ -36,29 +37,6 @@ export const getMyRole = async (): Promise<UserRole> => {
   }
   return 'employee';
 };
-// ============================================================================
-// CONSTANTS (Manually defined here to fix export issues)
-// ============================================================================
-export const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-  manager: 'Manager',
-  employee: 'Employee',
-  freelancer: 'Freelancer',
-  client: 'Client',
-  viewer: 'Viewer',
-};
-
-export const ROLE_COLORS: Record<string, string> = {
-  super_admin: '#ef4444',
-  admin: '#f97316',
-  manager: '#eab308',
-  employee: '#22c55e',
-  freelancer: '#06b6d4',
-  client: '#8b5cf6',
-  viewer: '#6b7280',
-};
-
 // ============================================================================
 // RBAC SYSTEM DATA & TYPES 
 // ============================================================================
@@ -217,6 +195,8 @@ export default function Dashboard() {
     { id: 'users', icon: <Users size={18} />, label: 'Users' },
     { id: 'workflows', icon: <BarChart2 size={18} />, label: 'Workflows' },
     { id: 'admin/rbac', icon: <Shield size={18} />, label: 'RBAC Access' },
+    { id: 'admin/leaves', icon: <ClipboardList size={18} />, label: 'Leave Requests' },
+    { id: 'admin/attendance', icon: <Clock size={18} />, label: 'Attendance' },
     { id: 'settings', icon: <Settings size={18} />, label: 'Settings' },
   ]
 

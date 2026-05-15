@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Briefcase, User, Search, Trash2, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { api } from '../lib/api'
-import BackButton from '../components/BackButton'
+import AdminSidebar from '../components/AdminSidebar'
+import '../styles/Dashboard.css'
 import { useSettings } from '../lib/SettingsContext'
 
 interface Assignment {
@@ -77,13 +78,14 @@ export default function AdminAssignments() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f1f5f9', fontFamily: 'Inter, sans-serif' }}>
+    <div className="dash-wrapper">
+      <AdminSidebar />
+      <main className="dash-main">
       {/* Header */}
-      <div style={{ background: '#1e293b', borderBottom: '1px solid #334155', padding: '1rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <BackButton />
-        <Briefcase size={22} color="#7c3aed" />
+      <div style={{ background: 'rgba(15, 5, 30, 0.85)', borderBottom: '1px solid rgba(244,114,182,0.18)', padding: '1rem 2rem', display: 'flex', alignItems: 'center', gap: '1rem', backdropFilter: 'blur(20px)' }}>
+        <Briefcase size={22} color="#a855f7" />
         <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Project Assignments</h1>
-        <span style={{ marginLeft: 'auto', background: '#7c3aed22', color: '#a78bfa', padding: '0.25rem 0.75rem', borderRadius: 20, fontSize: '0.8rem' }}>
+        <span style={{ marginLeft: 'auto', background: 'rgba(168,85,247,0.15)', color: '#a855f7', padding: '0.25rem 0.75rem', borderRadius: 20, fontSize: '0.8rem', border: '1px solid rgba(168,85,247,0.3)' }}>
           {counts.all} total
         </span>
       </div>
@@ -96,12 +98,12 @@ export default function AdminAssignments() {
               key={s}
               onClick={() => setStatusFilter(s)}
               style={{
-                padding: '0.5rem 1.25rem', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: statusFilter === s ? '#7c3aed' : '#1e293b',
-                color: statusFilter === s ? '#fff' : '#94a3b8',
+                padding: '0.5rem 1.25rem', borderRadius: 8, border: statusFilter === s ? 'none' : '1px solid rgba(244,114,182,0.18)', cursor: 'pointer',
+                background: statusFilter === s ? '#a855f7' : 'rgba(20,10,40,0.75)',
+                color: statusFilter === s ? '#fff' : '#9d7baa',
                 fontWeight: 600, fontSize: '0.85rem',
                 display: 'flex', alignItems: 'center', gap: 6,
-              }}
+              } as React.CSSProperties}
             >
               {s === 'assigned' && <Clock size={14} />}
               {s === 'rejected' && <XCircle size={14} />}
@@ -113,29 +115,29 @@ export default function AdminAssignments() {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: '1.5rem', maxWidth: 400 }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9d7baa' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by project, employee, role..."
             style={{
               width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem',
-              background: '#1e293b', border: '1px solid #334155', borderRadius: 8,
-              color: '#f1f5f9', fontSize: '0.9rem', boxSizing: 'border-box',
-            }}
+              background: 'rgba(20,10,40,0.75)', border: '1px solid rgba(244,114,182,0.18)', borderRadius: 8,
+              color: '#f0e6ff', fontSize: '0.9rem', boxSizing: 'border-box', outline: 'none',
+            } as React.CSSProperties}
           />
         </div>
 
         {/* Table */}
         {loading ? (
-          <p style={{ color: '#64748b' }}>Loading assignments...</p>
+          <p style={{ color: '#9d7baa' }}>Loading assignments...</p>
         ) : filtered.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No assignments found.</p>
+          <p style={{ color: '#9d7baa' }}>No assignments found.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid rgba(244,114,182,0.18)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
-                <tr style={{ background: '#1e293b', color: '#94a3b8' }}>
+                <tr style={{ background: 'rgba(15,5,30,0.85)', color: '#9d7baa' }}>
                   {['Project', 'Employee', 'Role', 'Priority', 'Progress', 'Status', 'Assigned On', ''].map(h => (
                     <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
@@ -145,24 +147,24 @@ export default function AdminAssignments() {
                 {filtered.map((a, i) => (
                   <tr
                     key={a.id}
-                    style={{ background: i % 2 === 0 ? '#0f172a' : '#111827', borderBottom: '1px solid #1e293b' }}
+                    style={{ background: i % 2 === 0 ? 'rgba(20,10,40,0.5)' : 'rgba(10,5,20,0.5)', borderBottom: '1px solid rgba(244,114,182,0.08)' }}
                   >
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{a.project_name}</div>
-                      {a.project_end_date && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Due: {a.project_end_date}</div>}
+                      <div style={{ fontWeight: 600, color: '#f0e6ff' }}>{a.project_name}</div>
+                      {a.project_end_date && <div style={{ fontSize: '0.75rem', color: '#9d7baa' }}>Due: {a.project_end_date}</div>}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <User size={14} color="#94a3b8" />
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <User size={14} color="#a855f7" />
                         </div>
                         <div>
-                          <div style={{ fontWeight: 500 }}>{a.employee_name || '—'}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{a.employee_email}</div>
+                          <div style={{ fontWeight: 500, color: '#f0e6ff' }}>{a.employee_name || '—'}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#9d7baa' }}>{a.employee_email}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#94a3b8' }}>{a.employee_role || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: '#9d7baa' }}>{a.employee_role || '—'}</td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ background: priorityColor[a.project_priority] + '22', color: priorityColor[a.project_priority], padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
                         {a.project_priority.toUpperCase()}
@@ -170,18 +172,18 @@ export default function AdminAssignments() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 6, background: '#334155', borderRadius: 3, minWidth: 60 }}>
-                          <div style={{ width: `${a.project_progress}%`, height: '100%', background: '#7c3aed', borderRadius: 3 }} />
+                        <div style={{ flex: 1, height: 6, background: 'rgba(168,85,247,0.15)', borderRadius: 3, minWidth: 60 }}>
+                          <div style={{ width: `${a.project_progress}%`, height: '100%', background: '#a855f7', borderRadius: 3 }} />
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{a.project_progress}%</span>
+                        <span style={{ fontSize: '0.75rem', color: '#9d7baa' }}>{a.project_progress}%</span>
                       </div>
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ background: (statusColor[a.status] || '#6b7280') + '22', color: statusColor[a.status] || '#6b7280', padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
+                      <span style={{ background: (statusColor[a.status] || '#6b7280') + '22', color: statusColor[a.status] || '#9d7baa', padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
                         {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
+                    <td style={{ padding: '0.75rem 1rem', color: '#9d7baa', fontSize: '0.8rem' }}>
                       {new Date(a.created_at).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
@@ -200,6 +202,7 @@ export default function AdminAssignments() {
           </div>
         )}
       </div>
+      </main>
     </div>
   )
 }

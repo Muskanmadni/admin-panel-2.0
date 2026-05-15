@@ -11,7 +11,7 @@ import urllib.request
 
 from src.config.settings import settings
 from src.database.session import SessionLocal
-from src.models import User, Tenant, IndividualUser, Employee
+from src.models import User, IndividualUser, Employee
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +90,9 @@ async def get_current_user(
         else:
             # Auto-create user on first login
             user_metadata = payload.get("user_metadata", {})
-            app_metadata = payload.get("app_metadata", {})
             email = payload.get("email", "")
             full_name = user_metadata.get("full_name") or payload.get("full_name")
             user_type = user_metadata.get("account_type", "individual")
-            org_code = user_metadata.get("org_code")
             
             user = User(
                 supabase_user_id=user_id,
@@ -105,24 +103,15 @@ async def get_current_user(
                 is_active=True
             )
             db.add(user)
-            db.flush()  # Get user.id
+            db.flush()
             
             if user_type == "employee":
-                if not org_code:
-                    raise HTTPException(status_code=400, detail="Organization code required for employee")
-                
-                tenant = db.query(Tenant).filter(Tenant.slug == org_code).first()
-                if not tenant:
-                    raise HTTPException(status_code=404, detail="Organization not found")
-                
                 org_profile = Employee(
                     user_id=user.id,
                     department=None,
                     role="employee"
                 )
                 db.add(org_profile)
-                
-                user.tenant_id = tenant.id
             
             elif user_type == "individual":
                 ind_profile = IndividualUser(

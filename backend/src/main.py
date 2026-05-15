@@ -20,7 +20,9 @@ from src.api import (
     workflows,
     rbac,
     employee_projects,
-    # dashboard
+    leave,
+    attendance,
+    dashboard
 )
 
 # Setup logging
@@ -126,11 +128,21 @@ def create_application() -> FastAPI:
         prefix=f"{api_prefix}/employee-projects",
         tags=["Employee Projects"]
     )
-    # application.include_router(
-    #     dashboard.router,
-    #     prefix=f"{api_prefix}/dashboard",
-    #     tags=["Dashboard"]
-    # )
+    application.include_router(
+        leave.router,
+        prefix=f"{api_prefix}/leave",
+        tags=["Leave"]
+    )
+    application.include_router(
+        attendance.router,
+        prefix=f"{api_prefix}/attendance",
+        tags=["Attendance"]
+    )
+    application.include_router(
+        dashboard.router,
+        prefix=f"{api_prefix}/dashboard",
+        tags=["Dashboard"]
+    )
 
     @application.get("/", tags=["System"])
     def root():

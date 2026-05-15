@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import {
-  Mail, Lock, Eye, EyeOff, User, Building2, Globe,
-  ArrowRight, Check, X, AlertCircle,
+  Mail, Lock, Eye, EyeOff, User, Building2,
+  ArrowRight, Check, X, AlertCircle, Camera,
 } from 'lucide-react'
 
 import AuthLayout from '../components/AuthLayout'
+import FaceCapture, { type FacePhotoUrls } from '../components/FaceCapture'
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
 import '../styles/Signup.css'
@@ -27,13 +28,17 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
   const type = searchParams.get('type') === 'employee' ? 'employee' : 'individual'
 
   const [indForm, setIndForm] = useState({ name: '', email: '', password: '', confirm: '' })
-  const [empForm, setEmpForm] = useState({ name: '', email: '', password: '', confirm: '', orgCode: '', department: '', role: '' })
+  const [empForm, setEmpForm] = useState({ name: '', email: '', password: '', confirm: '', department: '', role: '' })
   const [errors, setErrors]             = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm]   = useState(false)
   const [isLoading, setIsLoading]       = useState(false)
   const [success, setSuccess]           = useState(false)
   const [dbError, setDbError]           = useState<string | null>(null)
+  // Face capture state (employee only)
+  const [showFaceCapture, setShowFaceCapture] = useState(false)
+  const [facePhotoUrls, setFacePhotoUrls]     = useState<FacePhotoUrls | null>(null)
+  const [pendingAuthData, setPendingAuthData] = useState<{ userId: string; email: string; name: string } | null>(null)
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -48,7 +53,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
       if (!empForm.name.trim())    e.name     = 'Full name is required'
       if (!empForm.email.trim())   e.email    = 'Email is required'
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(empForm.email)) e.email = 'Invalid email'
-      if (!empForm.orgCode.trim()) e.orgCode  = 'Organization code is required'
       if (!empForm.password)       e.password = 'Password is required'
       else if (empForm.password.length < 8) e.password = 'Min 8 characters'
       if (empForm.confirm !== empForm.password) e.confirm = 'Passwords do not match'
@@ -78,13 +82,11 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
           data: {
             full_name:    name,
             account_type: type,
-            org_code:     type === 'employee' ? empForm.orgCode : undefined,
           },
         },
       })
 
       if (authError) {
-        // "User already registered" is the most common error — give a clear message
         if (
           authError.message.toLowerCase().includes('already registered') ||
           authError.message.toLowerCase().includes('already exists')
@@ -103,49 +105,98 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
         return
       }
 
-      // ── STEP 2: All new signups get "employee" role ───────────────────────
-      const assignedRole = 'employee'
-
-      // ── STEP 3: Save profile to Supabase user_profiles table ────────────
-      const { error: profileError } = await dbHelpers.createUserProfile({
-        user_id:      authData.user.id,
-        name,
-        email,
-        role:         assignedRole,
-        account_type: type,
-        org_code:     type === 'employee' ? empForm.orgCode : undefined,
-      })
-
-      if (profileError) {
-        console.error('Supabase profile error:', profileError)
-        console.warn('Profile save failed, will retry on next login')
+      // ── STEP 2: For employees, pause and show face capture ────────────────
+      if (type === 'employee') {
+        setPendingAuthData({ userId: authData.user.id, email, name })
+        setIsLoading(false)
+        setShowFaceCapture(true)
+        return
       }
 
-      // ── STEP 4: Sync user to Neon database via backend API ──────────────
-      try {
-        await api.post('/users/register', {
-          user_id:    authData.user.id,
-          email,
-          full_name:  name,
-          user_type:  type,
-          role:       assignedRole,
-          // Employee fields
-          org_code:   type === 'employee' ? empForm.orgCode : undefined,
-          department: type === 'employee' ? empForm.department : undefined,
-          position:   type === 'employee' ? empForm.role : undefined,
-        })
-        console.log('✅ User synced to Neon database')
-      } catch (err) {
-        console.error('Neon sync failed:', err)
-      }
-
-      setSuccess(true)
+      // ── For individuals, continue directly ───────────────────────────────
+      await finishRegistration(authData.user.id, email, name, 'individual', null)
 
     } catch (err) {
       setDbError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const finishRegistration = async (
+    userId: string,
+    email: string,
+    name: string,
+    userType: string,
+    photoUrls: FacePhotoUrls | null,
+  ) => {
+    const assignedRole = 'employee'
+
+    // Save profile to Supabase user_profiles
+    const { error: profileError } = await dbHelpers.createUserProfile({
+      user_id:      userId,
+      name,
+      email,
+      role:         assignedRole,
+      account_type: userType,
+    })
+    if (profileError) console.warn('Profile save failed, will retry on next login')
+
+    // Sync to Neon via backend API
+    try {
+      await api.post('/users/register', {
+        user_id:         userId,
+        email,
+        full_name:       name,
+        user_type:       userType,
+        role:            assignedRole,
+        department:      userType === 'employee' ? empForm.department : undefined,
+        position:        userType === 'employee' ? empForm.role       : undefined,
+        face_photo_urls: photoUrls ?? undefined,
+      })
+    } catch (err) {
+      console.error('Neon sync failed:', err)
+    }
+
+    setSuccess(true)
+  }
+
+  // Called when FaceCapture finishes uploading
+  const handleFaceCaptureComplete = async (urls: FacePhotoUrls) => {
+    if (!pendingAuthData) return
+    setFacePhotoUrls(urls)
+    setIsLoading(true)
+    try {
+      await finishRegistration(pendingAuthData.userId, pendingAuthData.email, pendingAuthData.name, 'employee', urls)
+      setShowFaceCapture(false)
+    } catch (err) {
+      setDbError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ── Face capture screen (employee only) ──────────────────────────────────
+  if (showFaceCapture && pendingAuthData) {
+    return (
+      <AuthLayout title="Face Verification 📸" subtitle="Take 3 photos: front, left, right">
+        {dbError && (
+          <div className="error-banner" style={{ marginBottom: '12px' }}>
+            <AlertCircle size={16} /> {dbError}
+          </div>
+        )}
+        <FaceCapture
+          userId={pendingAuthData.userId}
+          onComplete={handleFaceCaptureComplete}
+          onError={msg => setDbError(msg)}
+        />
+        {isLoading && (
+          <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '13px', marginTop: '8px' }}>
+            <span className="spinner" /> Finishing registration…
+          </p>
+        )}
+      </AuthLayout>
+    )
   }
 
   // ── Success screen ────────────────────────────────────────────────────────
@@ -243,12 +294,6 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
               onChange={e => { setEmpForm(p => ({ ...p, name: e.target.value })); setErrors(p => ({ ...p, name: '' })) }} />
           </Field>
 
-          <Field label="Organization Code" icon={<Globe size={20} />} error={errors.orgCode}>
-            <input type="text" value={empForm.orgCode} placeholder="e.g. 0022"
-              className={errors.orgCode ? 'error' : ''}
-              onChange={e => { setEmpForm(p => ({ ...p, orgCode: e.target.value.toLowerCase() })); setErrors(p => ({ ...p, orgCode: '' })) }} />
-          </Field>
-
           <Field label="Department" icon={<Building2 size={20} />} error={errors.department}>
             <input type="text" value={empForm.department} placeholder="Engineering"
               className={errors.department ? 'error' : ''}
@@ -282,12 +327,25 @@ export default function Signup({ setIsAuthenticated }: SignupProps) {
               placeholder="••••••••" className={errors.confirm ? 'error' : ''}
               onChange={e => { setEmpForm(p => ({ ...p, confirm: e.target.value })); setErrors(p => ({ ...p, confirm: '' })) }} />
           </Field>
+
+          {/* Face capture notice */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 14px', borderRadius: '8px',
+            background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
+            fontSize: '13px', color: '#93c5fd',
+          }}>
+            <Camera size={18} style={{ flexShrink: 0 }} />
+            <span>After submitting, you'll take <strong>3 face photos</strong> (front, left, right) for identity verification.</span>
+          </div>
         </>)}
 
         <button type="submit" disabled={isLoading} className="submit-btn">
           {isLoading
             ? <><span className="spinner" />Creating account...</>
-            : <>Create Account <ArrowRight size={18} /></>}
+            : type === 'employee'
+              ? <>Continue to Face Capture <Camera size={18} /></>
+              : <>Create Account <ArrowRight size={18} /></>}
         </button>
       </form>
 

@@ -16,6 +16,8 @@ import { useInactivity } from './hooks/useInactivity'
 import RBACPage from './lib/RBAC/RBACPage'
 import Workflows from './pages/workflows'
 import AdminAssignments from './pages/AdminAssignments'
+import AdminLeave from './pages/AdminLeave'
+import AdminAttendance from './pages/AdminAttendance'
 import { SettingsProvider } from './lib/SettingsContext'
 
 const ADMIN_ROLES = ['admin', 'super_admin']
@@ -53,6 +55,8 @@ function AppRoutes({
       <Route path="/workflows"          element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
       <Route path="/admin/rbac"         element={<ProtectedRoute><RBACPage /></ProtectedRoute>} />
       <Route path="/admin/assignments"  element={<ProtectedRoute><AdminAssignments /></ProtectedRoute>} />
+      <Route path="/admin/leaves"       element={<ProtectedRoute><AdminLeave /></ProtectedRoute>} />
+      <Route path="/admin/attendance"   element={<ProtectedRoute><AdminAttendance /></ProtectedRoute>} />
 
       {/* Default */}
       <Route path="/" element={<Navigate to={homePath} replace />} />

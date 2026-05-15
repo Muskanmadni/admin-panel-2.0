@@ -77,11 +77,14 @@ def assign_project(
         status="assigned",
     )
     db.add(ep)
-    db.commit()
-    db.refresh(ep)
 
     employee = db.query(User).filter(User.id == data.employee_id).first()
-    return _to_out(ep, project, employee)
+    if employee:
+        project.assignee = employee.full_name or employee.email
+
+    db.commit()
+    db.refresh(ep)
+    return _to_out(ep, project, employee, db)
 
 
 @router.get("/my", response_model=List[EmployeeProjectOut])
@@ -96,7 +99,7 @@ def my_projects(
     for ep in rows:
         project = db.query(Project).filter(Project.id == ep.project_id).first()
         if project:
-            result.append(_to_out(ep, project, current_user))
+            result.append(_to_out(ep, project, current_user, db))
     return result
 
 
@@ -123,17 +126,21 @@ def list_assignments(
 ):
     if current_user.role not in ("admin", "super_admin", "manager"):
         raise HTTPException(status_code=403, detail="Not authorized")
-    rows = db.query(EmployeeProject).filter(
-        EmployeeProject.employee_id.in_(
-            db.query(User.id).filter(User.tenant_id == current_user.tenant_id)
+
+    query = db.query(EmployeeProject)
+    if current_user.tenant_id:
+        query = query.filter(
+            EmployeeProject.employee_id.in_(
+                db.query(User.id).filter(User.tenant_id == current_user.tenant_id)
+            )
         )
-    ).all()
+    rows = query.all()
     result = []
     for ep in rows:
         project = db.query(Project).filter(Project.id == ep.project_id).first()
         employee = db.query(User).filter(User.id == ep.employee_id).first()
         if project:
-            result.append(_to_out(ep, project, employee))
+            result.append(_to_out(ep, project, employee, db))
     return result
 
 
@@ -224,7 +231,8 @@ def unassign_project(
     return {"message": "Unassigned successfully"}
 
 
-def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User]) -> dict:
+def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User], db: Session = None) -> dict:
+    emp_profile = db.query(Employee).filter(Employee.user_id == employee.id).first() if (db and employee) else None
     return {
         "id": ep.id,
         "employee_id": ep.employee_id,
@@ -240,5 +248,5 @@ def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User]) -> 
         "project_end_date": project.end_date,
         "employee_name": employee.full_name if employee else None,
         "employee_email": employee.email if employee else None,
-        "employee_role": employee.role if employee else None,
+        "employee_role": (emp_profile.role if emp_profile and emp_profile.role else None) or (employee.role if employee else None),
     }

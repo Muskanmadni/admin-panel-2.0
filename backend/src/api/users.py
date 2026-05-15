@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 
 from src.api import deps
-from src.models import User, Tenant, IndividualUser, Employee
+from src.models import User, IndividualUser, Employee
 
 router = APIRouter()
 
@@ -29,16 +29,14 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class UnifiedRegister(BaseModel):
-    user_id: UUID  # Supabase User ID
+    user_id: UUID
     email: str
     full_name: Optional[str] = None
-    user_type: str  # 'individual' or 'employee'
+    user_type: str
     role: str = "employee"
-    # Employee specific
-    org_code: Optional[str] = None
     department: Optional[str] = None
     position: Optional[str] = None
-    # Individual specific
+    face_photo_urls: Optional[Any] = None
     phone_number: Optional[str] = None
     address: Optional[str] = None
 
@@ -51,6 +49,16 @@ def register_user(
     # Check if user already exists in our Neon DB
     existing_user = db.query(User).filter(User.supabase_user_id == user_data.user_id).first()
     if existing_user:
+        # Update employee profile with signup data if it exists
+        if user_data.user_type == 'employee':
+            emp = db.query(Employee).filter(Employee.user_id == existing_user.id).first()
+            if emp:
+                emp.department = user_data.department or emp.department
+                emp.role = user_data.position or user_data.role or emp.role
+                if user_data.face_photo_urls:
+                    emp.face_photo_urls = user_data.face_photo_urls
+                db.commit()
+                db.refresh(existing_user)
         return existing_user
 
     try:
@@ -67,23 +75,13 @@ def register_user(
         db.flush() # Get user.id
 
         if user_data.user_type == 'employee':
-            # Handle Employee User - lookup tenant by org_code
-            if not user_data.org_code:
-                raise HTTPException(status_code=400, detail="Organization code is required for employee type")
-            
-            tenant = db.query(Tenant).filter(Tenant.org_code == user_data.org_code).first()
-            if not tenant:
-                raise HTTPException(status_code=404, detail="Organization not found. Check your organization code.")
-            
             employee_profile = Employee(
                 user_id=user.id,
                 department=user_data.department,
-                role=user_data.position or user_data.role
+                role=user_data.position or user_data.role,
+                face_photo_urls=user_data.face_photo_urls,
             )
             db.add(employee_profile)
-
-            # Link user to tenant
-            user.tenant_id = tenant.id
         
         elif user_data.user_type == 'individual':
             # 2b. Handle Individual User
@@ -133,6 +131,22 @@ def get_current_user_info(
                 "phone_number": profile.phone_number,
                 "address": profile.address
             })
+    elif current_user.user_type == 'employee':
+        emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+        if emp:
+            response_data.update({
+                "department": emp.department,
+                "position": emp.role,
+            })
+        if current_user.tenant_id:
+            from src.models import Tenant
+            tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+            if tenant:
+                response_data.update({
+                    "organization_name": tenant.name,
+                    "subdomain": tenant.slug,
+                    "org_code": tenant.org_code,
+                })
 
     return response_data
 
@@ -144,15 +158,22 @@ def get_users(
     current_user: User = Depends(deps.get_current_user)
 ):
     """Get all users (restricted for non-admins)."""
-    # If it's an organization user, they usually only see users in their tenant
-    # For now, let's keep it simple and show all for simplicity or add tenant filtering
-    query = db.query(User)
-    
-    # Optional: Filter by tenant if user is organizational
-    # if current_user.user_type == 'organization':
-    #     org_profile = db.query(OrganizationalUser).filter(OrganizationalUser.user_id == current_user.id).first()
-    #     if org_profile:
-    #         query = query.join(OrganizationalUser).filter(OrganizationalUser.tenant_id == org_profile.tenant_id)
-
-    users = query.offset(skip).limit(limit).all()
-    return users
+    users = db.query(User).offset(skip).limit(limit).all()
+    result = []
+    for u in users:
+        data = {
+            "id": u.id,
+            "supabase_user_id": u.supabase_user_id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "user_type": u.user_type,
+            "role": u.role,
+            "is_active": u.is_active,
+        }
+        if u.user_type == "employee":
+            emp = db.query(Employee).filter(Employee.user_id == u.id).first()
+            if emp:
+                data["position"] = emp.role
+                data["department"] = emp.department
+        result.append(UserResponse(**data))
+    return result
