@@ -12,6 +12,7 @@ interface Assignment {
   assigned_by: string
   status: string
   created_at: string
+  progress_report: string | null
   project_name: string
   project_description: string | null
   project_status: string
@@ -25,6 +26,7 @@ interface Assignment {
 
 const statusColor: Record<string, string> = {
   assigned: '#3b82f6',
+  accepted: '#10b981',
   rejected: '#ef4444',
   completed: '#10b981',
 }
@@ -41,7 +43,7 @@ export default function AdminAssignments() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'accepted' | 'rejected' | 'completed'>('all')
 
   useEffect(() => {
     api.get<Assignment[]>('/employee-projects/')
@@ -73,6 +75,7 @@ export default function AdminAssignments() {
   const counts = {
     all: assignments.length,
     assigned: assignments.filter(a => a.status === 'assigned').length,
+    accepted: assignments.filter(a => a.status === 'accepted').length,
     rejected: assignments.filter(a => a.status === 'rejected').length,
     completed: assignments.filter(a => a.status === 'completed').length,
   }
@@ -93,7 +96,7 @@ export default function AdminAssignments() {
       <div style={{ padding: '1.5rem 2rem' }}>
         {/* Stats row */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {(['all', 'assigned', 'rejected', 'completed'] as const).map(s => (
+          {(['all', 'assigned', 'accepted', 'rejected', 'completed'] as const).map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -106,6 +109,7 @@ export default function AdminAssignments() {
               } as React.CSSProperties}
             >
               {s === 'assigned' && <Clock size={14} />}
+              {s === 'accepted' && <CheckCircle size={14} />}
               {s === 'rejected' && <XCircle size={14} />}
               {s === 'completed' && <CheckCircle size={14} />}
               {s.charAt(0).toUpperCase() + s.slice(1)} ({counts[s]})
@@ -138,7 +142,7 @@ export default function AdminAssignments() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(15,5,30,0.85)', color: '#9d7baa' }}>
-                  {['Project', 'Employee', 'Role', 'Priority', 'Progress', 'Status', 'Assigned On', ''].map(h => (
+                  {['Project', 'Employee', 'Role', 'Priority', 'Progress', 'Status', 'Progress Report', 'Assigned On', ''].map(h => (
                     <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -182,6 +186,16 @@ export default function AdminAssignments() {
                       <span style={{ background: (statusColor[a.status] || '#6b7280') + '22', color: statusColor[a.status] || '#9d7baa', padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
                         {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                       </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', maxWidth: 220 }}>
+                      {a.progress_report ? (
+                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.4, maxHeight: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={a.progress_report}>
+                          {a.progress_report}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#475569', fontSize: '0.75rem' }}>No report yet</span>
+                      )}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#9d7baa', fontSize: '0.8rem' }}>
                       {new Date(a.created_at).toLocaleDateString()}

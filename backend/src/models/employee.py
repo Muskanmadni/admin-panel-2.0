@@ -30,6 +30,7 @@ class EmployeeProject(Base, TimestampMixin):
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("project.id"), nullable=False)
     assigned_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="assigned")
+    progress_report: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
 
     employee = relationship("User", foreign_keys=[employee_id])
     project = relationship("Project", foreign_keys=[project_id])

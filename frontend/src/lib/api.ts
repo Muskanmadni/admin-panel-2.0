@@ -78,6 +78,7 @@ export const api = {
       throw new Error(error.detail || 'API request failed');
     }
 
+    if (response.status === 204) return undefined as T;
     return response.json();
   },
 

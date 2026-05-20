@@ -25,6 +25,7 @@ class EmployeeProjectOut(BaseModel):
     assigned_by: UUID
     status: str
     created_at: datetime
+    progress_report: str | None = None
     # project details
     project_name: str
     project_description: str | None = None
@@ -117,6 +118,43 @@ def reject_project(
     ep.status = "rejected"
     db.commit()
     return {"message": "Project rejected"}
+
+
+@router.post("/{assignment_id}/accept")
+def accept_project(
+    assignment_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    ep = db.query(EmployeeProject).filter(EmployeeProject.id == assignment_id).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if ep.employee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    ep.status = "accepted"
+    db.commit()
+    return {"message": "Project accepted"}
+
+
+class ProgressReportIn(BaseModel):
+    report: str
+
+
+@router.post("/{assignment_id}/progress-report")
+def submit_progress_report(
+    assignment_id: UUID,
+    data: ProgressReportIn,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    ep = db.query(EmployeeProject).filter(EmployeeProject.id == assignment_id).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if ep.employee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    ep.progress_report = data.report
+    db.commit()
+    return {"message": "Progress report saved"}
 
 
 @router.get("/", response_model=List[EmployeeProjectOut])
@@ -240,6 +278,7 @@ def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User], db:
         "assigned_by": ep.assigned_by,
         "status": ep.status,
         "created_at": ep.created_at,
+        "progress_report": ep.progress_report,
         "project_name": project.name,
         "project_description": project.description,
         "project_status": project.status,

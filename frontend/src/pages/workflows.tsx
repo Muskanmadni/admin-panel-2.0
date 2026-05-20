@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Grid, CheckCircle, Clock, Calendar, Search, Filter, Plus, Briefcase, User, 
-  Eye, Edit, MoreVertical, Flag, Building2, DollarSign, Tag, UserPlus
+  Eye, Edit, Trash2, Flag, Building2, DollarSign, Tag, UserPlus
 } from 'lucide-react'
 import BackButton from '../components/BackButton'
 import AdminSidebar from '../components/AdminSidebar'
@@ -50,6 +50,10 @@ export default function Workflows() {
   const [assigningTo, setAssigningTo] = useState('')
   const [assignMsg, setAssignMsg] = useState('')
   const [loadingEmployees, setLoadingEmployees] = useState(false)
+  const [viewProject, setViewProject] = useState<Project | null>(null)
+  const [editProject, setEditProject] = useState<Project | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', description: '', status: 'pending', priority: 'medium', assignee: '', client: '', category: '', start_date: '', end_date: '', budget: '', tags: '', progress: 0 })
+  const [editSubmitting, setEditSubmitting] = useState(false)
 
   // Get current user on component mount
   useEffect(() => {
@@ -180,6 +184,42 @@ export default function Workflows() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const openEditModal = async (project: Project) => {
+    setEditProject(project)
+    setEditForm({
+      name: project.name, description: project.description, status: project.status,
+      priority: project.priority, assignee: project.assignee || '', client: project.client || '',
+      category: project.category, start_date: project.startDate || '', end_date: project.endDate || '',
+      budget: project.budget ? String(project.budget) : '', tags: project.tags.join(', '), progress: project.progress
+    })
+    if (formEmployees.length === 0) {
+      setLoadingFormEmployees(true)
+      try {
+        const all = await api.get<any[]>('/users/')
+        setFormEmployees(all.filter((u: any) => u.user_type === 'employee' || u.role === 'employee'))
+      } catch { setFormEmployees([]) }
+      finally { setLoadingFormEmployees(false) }
+    }
+  }
+
+  const handleEditProject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editProject) return
+    setEditSubmitting(true)
+    try {
+      const payload = { ...editForm, budget: editForm.budget ? parseFloat(editForm.budget) : null, tags: editForm.tags ? editForm.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [] }
+      const updated = await api.put<any>(`/workflows/${editProject.id}`, payload)
+      setProjects(prev => prev.map(p => p.id === editProject.id ? {
+        ...p, name: updated.name, description: updated.description || '', status: updated.status,
+        priority: updated.priority, assignee: updated.assignee, client: updated.client,
+        category: updated.category || '', startDate: updated.start_date, endDate: updated.end_date,
+        progress: updated.progress || 0, budget: updated.budget, tags: updated.tags || []
+      } : p))
+      setEditProject(null)
+    } catch (err) { console.error('Failed to update project:', err) }
+    finally { setEditSubmitting(false) }
   }
 
   const openAssignModal = async (projectId: string, projectName: string) => {
@@ -457,14 +497,20 @@ export default function Workflows() {
                 <button className="action-btn" title="Assign to Employee" onClick={() => openAssignModal(project.id, project.name)}>
                   <UserPlus size={18} />
                 </button>
-                <button className="action-btn">
+                <button className="action-btn" onClick={() => setViewProject(project)}>
                   <Eye size={18} />
                 </button>
-                <button className="action-btn">
+                <button className="action-btn" onClick={() => openEditModal(project)}>
                   <Edit size={18} />
                 </button>
-                <button className="action-btn">
-                  <MoreVertical size={18} />
+                <button className="action-btn" title="Delete Project" onClick={async () => {
+                  if (!confirm(`Delete "${project.name}"?`)) return
+                  try {
+                    await api.delete(`/workflows/${project.id}`)
+                    setProjects(prev => prev.filter(p => p.id !== project.id))
+                  } catch (err) { console.error('Failed to delete:', err) }
+                }}>
+                  <Trash2 size={18} />
                 </button>
               </div>
             </div>
@@ -593,6 +639,148 @@ export default function Workflows() {
               <button className="btn-submit" onClick={handleAssign} disabled={!assigningTo}>Assign</button>
             </div>
           </div>
+        </div>
+      </div>
+    )}
+
+    {viewProject && (
+      <div className="modal-overlay" onClick={() => setViewProject(null)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div className="modal-header">
+            <h2>{viewProject.name}</h2>
+            <button className="modal-close" onClick={() => setViewProject(null)}>×</button>
+          </div>
+          <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span className="status-badge" style={{ backgroundColor: getStatusColor(viewProject.status) }}>
+                {viewProject.status === 'assigned' || viewProject.status === 'pending' ? 'In Progress' : viewProject.status.charAt(0).toUpperCase() + viewProject.status.slice(1)}
+              </span>
+              <span className="priority-badge" style={{ backgroundColor: getPriorityColor(viewProject.priority) }}>
+                {viewProject.priority.toUpperCase()}
+              </span>
+            </div>
+
+            {viewProject.description && <p style={{ color: '#94a3b8', margin: 0 }}>{viewProject.description}</p>}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>ASSIGNEE</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.assignee || 'Unassigned'}</p></div>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>CLIENT</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.client || '—'}</p></div>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>CATEGORY</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.category || '—'}</p></div>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>BUDGET</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.budget ? `$${viewProject.budget.toLocaleString()}` : '—'}</p></div>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>START DATE</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.startDate || '—'}</p></div>
+              <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>END DATE</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.endDate || '—'}</p></div>
+            </div>
+
+            <div>
+              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>PROGRESS</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                <div className="progress-bar" style={{ flex: 1 }}>
+                  <div className="progress-fill" style={{ width: `${viewProject.progress}%` }} />
+                </div>
+                <span style={{ color: '#f1f5f9', fontSize: '0.85rem' }}>{viewProject.progress}%</span>
+              </div>
+            </div>
+
+            {viewProject.tags.length > 0 && (
+              <div>
+                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>TAGS</span>
+                <div className="tech-tags" style={{ marginTop: 6 }}>
+                  {viewProject.tags.map((tag, i) => <span key={i} className="tech-tag">{tag}</span>)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    {editProject && (
+      <div className="modal-overlay" onClick={() => setEditProject(null)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>Edit Project</h2>
+            <button className="modal-close" onClick={() => setEditProject(null)}>×</button>
+          </div>
+          <form onSubmit={handleEditProject} className="modal-form">
+            <div className="form-row">
+              <label>Project Name *</label>
+              <input required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+            </div>
+            <div className="form-row">
+              <label>Description</label>
+              <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={3} />
+            </div>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Status</label>
+                <select value={editForm.status} onChange={e => setEditForm({...editForm, status: e.target.value})}>
+                  <option value="pending">Pending</option>
+                  <option value="assigned">In Progress</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Priority</label>
+                <select value={editForm.priority} onChange={e => setEditForm({...editForm, priority: e.target.value})}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Assignee</label>
+                <select value={editForm.assignee} onChange={e => setEditForm({...editForm, assignee: e.target.value})}>
+                  <option value="">-- Select employee --</option>
+                  {formEmployees.map(emp => (
+                    <option key={emp.id} value={emp.full_name || emp.email}>
+                      {emp.full_name || emp.email}{emp.position ? ` (${emp.position}${emp.department ? ' · ' + emp.department : ''})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Client</label>
+                <input value={editForm.client} onChange={e => setEditForm({...editForm, client: e.target.value})} />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Start Date</label>
+                <input type="date" value={editForm.start_date} onChange={e => setEditForm({...editForm, start_date: e.target.value})} />
+              </div>
+              <div className="form-row">
+                <label>End Date</label>
+                <input type="date" value={editForm.end_date} onChange={e => setEditForm({...editForm, end_date: e.target.value})} />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Budget ($)</label>
+                <input type="number" value={editForm.budget} onChange={e => setEditForm({...editForm, budget: e.target.value})} />
+              </div>
+              <div className="form-row">
+                <label>Category</label>
+                <input value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Progress (%)</label>
+                <input type="number" min={0} max={100} value={editForm.progress} onChange={e => setEditForm({...editForm, progress: parseInt(e.target.value) || 0})} />
+              </div>
+              <div className="form-row">
+                <label>Tags (comma separated)</label>
+                <input value={editForm.tags} onChange={e => setEditForm({...editForm, tags: e.target.value})} />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-cancel" onClick={() => setEditProject(null)}>Cancel</button>
+              <button type="submit" className="btn-submit" disabled={editSubmitting}>{editSubmitting ? 'Saving...' : 'Save Changes'}</button>
+            </div>
+          </form>
         </div>
       </div>
     )}

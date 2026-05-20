@@ -26,6 +26,7 @@ interface Project {
   id: string
   assignmentId: string
   assignmentStatus: string
+  progressReport: string | null
   name: string
   description: string
   status: 'active' | 'completed' | 'pending'
@@ -121,6 +122,7 @@ export default function EmployeeDashboard() {
             id: p.project_id,
             assignmentId: p.id,
             assignmentStatus: p.status,
+            progressReport: p.progress_report ?? null,
             name: p.project_name,
             description: p.project_description || '',
             status: p.project_status || 'active',
@@ -243,6 +245,26 @@ export default function EmployeeDashboard() {
     } catch (err) {
       console.error('Failed to reject project:', err)
       alert('Failed to reject project')
+    }
+  }
+
+  const handleAcceptProject = async (assignmentId: string) => {
+    try {
+      await api.post(`/employee-projects/${assignmentId}/accept`, {})
+      setProjects(prev => prev.map(p => p.assignmentId === assignmentId ? { ...p, assignmentStatus: 'accepted' } : p))
+    } catch (err) {
+      console.error('Failed to accept project:', err)
+      alert('Failed to accept project')
+    }
+  }
+
+  const handleProgressReport = async (assignmentId: string, report: string) => {
+    try {
+      await api.post(`/employee-projects/${assignmentId}/progress-report`, { report })
+      setProjects(prev => prev.map(p => p.assignmentId === assignmentId ? { ...p, progressReport: report } : p))
+    } catch (err) {
+      console.error('Failed to save progress report:', err)
+      alert('Failed to save progress report')
     }
   }
 
@@ -394,7 +416,7 @@ export default function EmployeeDashboard() {
         <div className="emp-content">
           {activeSection === 'overview' && <OverviewSection user={user} projects={projects} attendance={attendance} />}
           {activeSection === 'profile' && <ProfileSection user={user} />}
-          {activeSection === 'projects' && <ProjectsSection projects={projects} onReject={handleRejectProject} />}
+          {activeSection === 'projects' && <ProjectsSection projects={projects} onReject={handleRejectProject} onAccept={handleAcceptProject} onProgressReport={handleProgressReport} />}
           {activeSection === 'attendance' && (
             <AttendanceSection
               attendance={attendance}
@@ -559,8 +581,10 @@ function ProfileSection({ user }: any) {
   )
 }
 
-function ProjectsSection({ projects, onReject }: any) {
+function ProjectsSection({ projects, onReject, onAccept, onProgressReport }: any) {
   const [filter, setFilter] = useState('all')
+  const [reportDraft, setReportDraft] = useState<Record<string, string>>({})
+  const [expandedReport, setExpandedReport] = useState<string | null>(null)
   const filtered = projects.filter((p: any) => filter === 'all' || p.status === filter)
 
   return (
@@ -605,22 +629,93 @@ function ProjectsSection({ projects, onReject }: any) {
                   <span>{project.team.join(', ')}</span>
                 </div>
               )}
-              {/* Reject button — only show if not already rejected */}
-              {project.assignmentStatus !== 'rejected' ? (
-                <button
-                  onClick={() => onReject(project.assignmentId)}
-                  style={{
-                    marginTop: '0.75rem', width: '100%', padding: '0.4rem 0',
-                    background: '#ef444422', color: '#f87171', border: '1px solid #ef444444',
-                    borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}
-                >
-                  <XCircle size={14} /> Reject Assignment
-                </button>
-              ) : (
+
+              {/* Accept / Reject / Status buttons */}
+              {project.assignmentStatus === 'rejected' ? (
                 <div style={{ marginTop: '0.75rem', textAlign: 'center', color: '#f87171', fontSize: '0.8rem', fontWeight: 600 }}>
                   ✗ Assignment Rejected
+                </div>
+              ) : project.assignmentStatus === 'accepted' ? (
+                <div style={{ marginTop: '0.75rem', textAlign: 'center', color: '#34d399', fontSize: '0.8rem', fontWeight: 600 }}>
+                  ✓ Assignment Accepted
+                </div>
+              ) : (
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => onAccept(project.assignmentId)}
+                    style={{
+                      flex: 1, padding: '0.4rem 0',
+                      background: '#10b98122', color: '#34d399', border: '1px solid #10b98144',
+                      borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    <CheckCircle size={14} /> Accept
+                  </button>
+                  <button
+                    onClick={() => onReject(project.assignmentId)}
+                    style={{
+                      flex: 1, padding: '0.4rem 0',
+                      background: '#ef444422', color: '#f87171', border: '1px solid #ef444444',
+                      borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    <XCircle size={14} /> Reject
+                  </button>
+                </div>
+              )}
+
+              {/* Progress Report */}
+              {project.assignmentStatus !== 'rejected' && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    onClick={() => setExpandedReport(expandedReport === project.assignmentId ? null : project.assignmentId)}
+                    style={{
+                      width: '100%', padding: '0.4rem 0',
+                      background: '#3b82f622', color: '#93c5fd', border: '1px solid #3b82f644',
+                      borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    <TrendingUp size={14} />
+                    {project.progressReport ? 'Update Progress Report' : 'Write Progress Report'}
+                  </button>
+                  {expandedReport === project.assignmentId && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {project.progressReport && (
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.4rem', padding: '0.5rem', background: '#0f172a', borderRadius: 4 }}>
+                          <strong style={{ color: '#64748b' }}>Last report:</strong> {project.progressReport}
+                        </div>
+                      )}
+                      <textarea
+                        rows={3}
+                        placeholder="Describe your progress, what you've completed, and what's remaining..."
+                        value={reportDraft[project.assignmentId] ?? project.progressReport ?? ''}
+                        onChange={e => setReportDraft(prev => ({ ...prev, [project.assignmentId]: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '0.5rem', background: '#1e293b',
+                          border: '1px solid #334155', borderRadius: 6, color: '#e2e8f0',
+                          fontSize: '0.8rem', resize: 'vertical', boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const text = reportDraft[project.assignmentId] ?? ''
+                          if (!text.trim()) return
+                          onProgressReport(project.assignmentId, text)
+                          setExpandedReport(null)
+                        }}
+                        style={{
+                          marginTop: '0.4rem', width: '100%', padding: '0.4rem 0',
+                          background: '#3b82f6', color: '#fff', border: 'none',
+                          borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                        }}
+                      >
+                        Submit Report
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
