@@ -123,7 +123,7 @@ def all_attendance(
         result.append({
             "id": r.id, "date": r.date, "check_in": r.check_in,
             "check_out": r.check_out, "status": r.status, "hours": r.hours,
-            "employee_name": emp.full_name if emp else None,
+            "employee_name": (emp.full_name or emp.email.split('@')[0]) if emp else None,
             "employee_email": emp.email if emp else None,
         })
     return result

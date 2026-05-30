@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Calendar, User, Search, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { api } from '../lib/api'
-import AdminSidebar from '../components/AdminSidebar'
-import '../styles/Dashboard.css'
+import { api } from '../../lib/api'
+import AdminSidebar from '../../components/AdminSidebar'
+import '../../styles/adminStyling/Dashboard.css'
 
 interface LeaveRequest {
   id: string
@@ -218,3 +218,6 @@ export default function AdminLeave() {
     </div>
   )
 }
+
+
+

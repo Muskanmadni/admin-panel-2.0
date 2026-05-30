@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ChevronDown, User, Briefcase } from 'lucide-react'
 import AuthLayout from '../components/AuthLayout'
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
@@ -161,42 +161,56 @@ export default function Login({ setIsAuthenticated }: LoginProps) {
         </button>
       </form>
 
-      {/* ── Split Signup ─────────────────────────────────────────────────── */}
-      <div className="toggle-auth">
-        Don't have an account?{' '}
-        <button
-          className="signup-trigger"
-          onClick={() => setShowSignupMenu(prev => !prev)}
-        >
-          Sign up ▾
-        </button>
-      </div>
-
-      {showSignupMenu && (
-        <div className="signup-menu">
-          <Link to="/signup?type=individual" className="signup-option" onClick={() => setShowSignupMenu(false)}>
-            <span className="signup-option-icon">👤</span>
-            <div>
-              <strong>Individual</strong>
-              <small>Personal account for one user</small>
-            </div>
-          </Link>
-          <Link to="/signup?type=employee" className="signup-option" onClick={() => setShowSignupMenu(false)}>
-            <span className="signup-option-icon">💼</span>
-            <div>
-              <strong>Employee</strong>
-              <small>Join your organization using code</small>
-            </div>
-          </Link>
-          <Link to="/signup?type=organization" className="signup-option" onClick={() => setShowSignupMenu(false)}>
-            <span className="signup-option-icon">🏢</span>
-            <div>
-              <strong>Organization</strong>
-              <small>Team account with admin controls</small>
-            </div>
-          </Link>
+      {/* ── Sign up ──────────────────────────────────────────────────────── */}
+      <div className="signup-auth-block">
+        <div className="toggle-auth">
+          <span className="toggle-auth-text">Don&apos;t have an account?</span>
+          <button
+            type="button"
+            className={`signup-trigger${showSignupMenu ? ' is-open' : ''}`}
+            onClick={() => setShowSignupMenu(prev => !prev)}
+            aria-expanded={showSignupMenu}
+            aria-haspopup="true"
+          >
+            Sign up
+            <ChevronDown size={16} className="signup-trigger-chevron" />
+          </button>
         </div>
-      )}
+
+        {showSignupMenu && (
+          <div className="signup-menu" role="menu">
+            <p className="signup-menu-label">Choose account type</p>
+            <Link
+              to="/signup?type=individual"
+              className="signup-option"
+              role="menuitem"
+              onClick={() => setShowSignupMenu(false)}
+            >
+              <span className="signup-option-icon signup-option-icon--individual">
+                <User size={20} />
+              </span>
+              <div className="signup-option-text">
+                <strong>Individual</strong>
+                <small>Personal account for one user</small>
+              </div>
+            </Link>
+            <Link
+              to="/signup?type=employee"
+              className="signup-option"
+              role="menuitem"
+              onClick={() => setShowSignupMenu(false)}
+            >
+              <span className="signup-option-icon signup-option-icon--employee">
+                <Briefcase size={20} />
+              </span>
+              <div className="signup-option-text">
+                <strong>Employee</strong>
+                <small>Join your organization using code</small>
+              </div>
+            </Link>
+          </div>
+        )}
+      </div>
     </AuthLayout>
   )
 }

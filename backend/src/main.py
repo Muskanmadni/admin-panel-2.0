@@ -22,7 +22,10 @@ from src.api import (
     employee_projects,
     leave,
     attendance,
-    dashboard
+    dashboard,
+    time_tracking,
+    announcements,
+    notifications,
 )
 
 # Setup logging
@@ -142,6 +145,21 @@ def create_application() -> FastAPI:
         dashboard.router,
         prefix=f"{api_prefix}/dashboard",
         tags=["Dashboard"]
+    )
+    application.include_router(
+        time_tracking.router,
+        prefix=f"{api_prefix}/time-tracking",
+        tags=["Time Tracking"]
+    )
+    application.include_router(
+        announcements.router,
+        prefix=f"{api_prefix}/announcements",
+        tags=["Announcements"]
+    )
+    application.include_router(
+        notifications.router,
+        prefix=f"{api_prefix}/notifications",
+        tags=["Notifications"]
     )
 
     @application.get("/", tags=["System"])

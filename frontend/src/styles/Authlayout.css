@@ -407,11 +407,27 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(244, 114, 182, 0.2);
   border-radius: 12px;
-  padding: 0.78rem 1rem 0.78rem 2.75rem;
+  padding: 0.78rem 1rem 0.78rem 3rem;
   color: #f8f0ff;
   font-size: 0.95rem;
-  transition: all 0.25s;
+  transition: padding 0.2s ease, border-color 0.25s, background 0.25s, box-shadow 0.25s;
   outline: none;
+}
+
+/* Password fields: keep text clear of lock (left) and eye toggle (right) */
+.input-wrapper:has(.toggle-password) .input-icon {
+  left: 16px;
+}
+
+.input-wrapper:has(.toggle-password) input {
+  padding-left: 3.25rem;
+  padding-right: 3.5rem;
+}
+
+/* Visible password (type=text) needs extra left space — plain text is wider than dots */
+.input-wrapper:has(.toggle-password) input[type="text"] {
+  padding-left: 4.25rem;
+  padding-right: 3.75rem;
 }
 
 .input-wrapper input::placeholder { color: #6b4f7a; }
@@ -428,18 +444,30 @@
 
 .toggle-password {
   position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 40px;
+  min-height: 40px;
+  background: rgba(8, 6, 18, 0.92);
+  border: 1px solid rgba(244, 114, 182, 0.15);
+  border-radius: 10px;
   color: #9d6baa;
   cursor: pointer;
-  padding: 4px;
+  padding: 8px;
   display: flex;
   align-items: center;
-  transition: color 0.2s;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 2;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
 }
 
-.toggle-password:hover { color: #f472b6; }
+.toggle-password:hover {
+  color: #f472b6;
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(244, 114, 182, 0.35);
+}
 
 .error-text {
   display: block;

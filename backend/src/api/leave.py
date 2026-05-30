@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 from src.api import deps
-from src.models import User, Notification
+from src.api.notifications import create_notification, notify_admins
+from src.models import User
 from src.models.employee import LeaveRequest
 
 router = APIRouter()
@@ -36,15 +37,6 @@ class LeaveRequestOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class NotificationOut(BaseModel):
-    id: UUID
-    message: str
-    is_read: bool
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 @router.post("/", response_model=LeaveRequestOut)
 def create_leave(
     data: LeaveRequestIn,
@@ -61,6 +53,17 @@ def create_leave(
         status="pending",
     )
     db.add(leave)
+    db.flush()
+    emp_name = current_user.full_name or current_user.email
+    notify_admins(
+        db,
+        message=(
+            f'{emp_name} submitted a {data.type} leave request '
+            f'({data.start_date} to {data.end_date}, {data.days} day(s)). Pending approval.'
+        ),
+        notification_type="leave_request",
+        tenant_id=current_user.tenant_id,
+    )
     db.commit()
     db.refresh(leave)
     return _to_out(leave, current_user)
@@ -107,41 +110,14 @@ def update_leave_status(
     if not leave:
         raise HTTPException(status_code=404, detail="Leave request not found")
     leave.status = status
-    # Create notification for the employee
-    notif = Notification(
+    create_notification(
+        db,
         user_id=leave.employee_id,
         message=f"Your {leave.type} leave request ({leave.start_date} to {leave.end_date}) has been {status}.",
-        is_read=False,
+        notification_type="leave",
     )
-    db.add(notif)
     db.commit()
     return {"message": f"Leave {status}"}
-
-
-@router.get("/notifications/my", response_model=List[NotificationOut])
-def my_notifications(
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    return db.query(Notification).filter(
-        Notification.user_id == current_user.id
-    ).order_by(Notification.created_at.desc()).limit(20).all()
-
-
-@router.post("/notifications/{notif_id}/read")
-def mark_read(
-    notif_id: UUID,
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user)
-):
-    notif = db.query(Notification).filter(
-        Notification.id == notif_id,
-        Notification.user_id == current_user.id
-    ).first()
-    if notif:
-        notif.is_read = True
-        db.commit()
-    return {"ok": True}
 
 
 def _to_out(leave: LeaveRequest, emp: User | None) -> dict:

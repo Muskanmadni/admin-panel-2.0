@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import {
   LogOut, User, Settings, Bell, Home, Users,
   Zap, DollarSign, CheckCircle, Clock,
-  AlertCircle, BarChart2, ChevronRight, Activity, Wifi, WifiOff, Shield, Key, ClipboardList
+  AlertCircle, BarChart2, ChevronRight, Activity, Wifi, WifiOff, Shield, Key, ClipboardList, Megaphone
 } from 'lucide-react'
 
 // Internal imports
-import { supabase, dbHelpers } from '../lib/supabase'
-import { getActivityLogs, ActivityLog, timeAgo, ACTION_ICONS } from '../lib/activity'
-import { api } from '../lib/api'
-import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
-import '../styles/Dashboard.css'
+import { supabase, dbHelpers } from '../../lib/supabase'
+import { getActivityLogs, ActivityLog, timeAgo, ACTION_ICONS } from '../../lib/activity'
+import { api } from '../../lib/api'
+import { ROLE_LABELS, ROLE_COLORS } from '../../lib/roleConstants'
+import '../../styles/adminStyling/Dashboard.css'
 
 // ==========================================================
 // Fetch user role from Neon database
@@ -195,8 +195,11 @@ export default function Dashboard() {
     { id: 'users', icon: <Users size={18} />, label: 'Users' },
     { id: 'workflows', icon: <BarChart2 size={18} />, label: 'Workflows' },
     { id: 'admin/rbac', icon: <Shield size={18} />, label: 'RBAC Access' },
+    { id: 'admin/notifications', icon: <Bell size={18} />, label: 'Notifications' },
     { id: 'admin/leaves', icon: <ClipboardList size={18} />, label: 'Leave Requests' },
     { id: 'admin/attendance', icon: <Clock size={18} />, label: 'Attendance' },
+    { id: 'admin/time-tracking', icon: <Clock size={18} />, label: 'Time Tracking' },
+    { id: 'admin/announcements', icon: <Megaphone size={18} />, label: 'Announcements' },
     { id: 'settings', icon: <Settings size={18} />, label: 'Settings' },
   ]
 
@@ -510,3 +513,5 @@ function RBACManager() {
     </div>
   )
 }
+
+

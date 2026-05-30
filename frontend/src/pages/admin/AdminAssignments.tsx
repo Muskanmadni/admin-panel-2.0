@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Briefcase, User, Search, Trash2, CheckCircle, XCircle, Clock } from 'lucide-react'
-import { api } from '../lib/api'
-import AdminSidebar from '../components/AdminSidebar'
-import '../styles/Dashboard.css'
-import { useSettings } from '../lib/SettingsContext'
+import { api } from '../../lib/api'
+import AdminSidebar from '../../components/AdminSidebar'
+import '../../styles/adminStyling/Dashboard.css'
+import { useSettings } from '../../lib/SettingsContext'
 
 interface Assignment {
   id: string
@@ -12,12 +12,10 @@ interface Assignment {
   assigned_by: string
   status: string
   created_at: string
-  progress_report: string | null
   project_name: string
   project_description: string | null
   project_status: string
   project_priority: string
-  project_progress: number
   project_end_date: string | null
   employee_name: string | null
   employee_email: string | null
@@ -36,6 +34,11 @@ const priorityColor: Record<string, string> = {
   high: '#f59e0b',
   medium: '#fbbf24',
   low: '#6b7280',
+}
+
+function assignmentStatus(a: Assignment): string {
+  if (a.project_status === 'completed' || a.status === 'completed') return 'completed'
+  return a.status
 }
 
 export default function AdminAssignments() {
@@ -59,7 +62,7 @@ export default function AdminAssignments() {
   }
 
   const filtered = assignments.filter(a => {
-    if (statusFilter !== 'all' && a.status !== statusFilter) return false
+    if (statusFilter !== 'all' && assignmentStatus(a) !== statusFilter) return false
     if (search) {
       const q = search.toLowerCase()
       return (
@@ -74,10 +77,10 @@ export default function AdminAssignments() {
 
   const counts = {
     all: assignments.length,
-    assigned: assignments.filter(a => a.status === 'assigned').length,
-    accepted: assignments.filter(a => a.status === 'accepted').length,
-    rejected: assignments.filter(a => a.status === 'rejected').length,
-    completed: assignments.filter(a => a.status === 'completed').length,
+    assigned: assignments.filter(a => assignmentStatus(a) === 'assigned').length,
+    accepted: assignments.filter(a => assignmentStatus(a) === 'accepted').length,
+    rejected: assignments.filter(a => assignmentStatus(a) === 'rejected').length,
+    completed: assignments.filter(a => assignmentStatus(a) === 'completed').length,
   }
 
   return (
@@ -142,13 +145,15 @@ export default function AdminAssignments() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(15,5,30,0.85)', color: '#9d7baa' }}>
-                  {['Project', 'Employee', 'Role', 'Priority', 'Progress', 'Status', 'Progress Report', 'Assigned On', ''].map(h => (
+                  {['Project', 'Employee', 'Role', 'Priority', 'Status', 'Assigned On', ''].map(h => (
                     <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((a, i) => (
+                {filtered.map((a, i) => {
+                  const status = assignmentStatus(a)
+                  return (
                   <tr
                     key={a.id}
                     style={{ background: i % 2 === 0 ? 'rgba(20,10,40,0.5)' : 'rgba(10,5,20,0.5)', borderBottom: '1px solid rgba(244,114,182,0.08)' }}
@@ -175,27 +180,9 @@ export default function AdminAssignments() {
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ flex: 1, height: 6, background: 'rgba(168,85,247,0.15)', borderRadius: 3, minWidth: 60 }}>
-                          <div style={{ width: `${a.project_progress}%`, height: '100%', background: '#a855f7', borderRadius: 3 }} />
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: '#9d7baa' }}>{a.project_progress}%</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span style={{ background: (statusColor[a.status] || '#6b7280') + '22', color: statusColor[a.status] || '#9d7baa', padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
-                        {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                      <span style={{ background: (statusColor[status] || '#6b7280') + '22', color: statusColor[status] || '#9d7baa', padding: '0.2rem 0.6rem', borderRadius: 12, fontSize: '0.75rem', fontWeight: 600 }}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
                       </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', maxWidth: 220 }}>
-                      {a.progress_report ? (
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.4, maxHeight: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                          title={a.progress_report}>
-                          {a.progress_report}
-                        </div>
-                      ) : (
-                        <span style={{ color: '#475569', fontSize: '0.75rem' }}>No report yet</span>
-                      )}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', color: '#9d7baa', fontSize: '0.8rem' }}>
                       {new Date(a.created_at).toLocaleDateString()}
@@ -210,7 +197,8 @@ export default function AdminAssignments() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -220,3 +208,6 @@ export default function AdminAssignments() {
     </div>
   )
 }
+
+
+

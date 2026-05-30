@@ -1,0 +1,441 @@
+/* ============================================================
+   TIME TRACKING MODULE — time-tracking.css
+   Unified theme: emp-theme.css color palette
+   ============================================================ */
+:root {
+  --emp-btn-pink: #ec4899;
+}
+
+/* ── Keyframe Animations ─────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px) rotateX(5deg); }
+  to   { opacity: 1; transform: translateY(0) rotateX(0deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92) rotateX(10deg); }
+  to   { opacity: 1; transform: scale(1) rotateX(0deg); }
+}
+
+@keyframes pulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.45); }
+  70%  { box-shadow: 0 0 0 8px rgba(236, 72, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); }
+}
+
+@keyframes pulseRingRed {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+  70%  { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes timerTick {
+  0%   { opacity: 1; }
+  45%  { opacity: 1; }
+  50%  { opacity: 0.6; }
+  55%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes barGrow {
+  from { height: 0%; }
+  to   { height: var(--bar-height); }
+}
+
+@keyframes progressFill {
+  from { width: 0%; }
+  to   { width: var(--progress-width); }
+}
+
+@keyframes spinOnce {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes badgePop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes rowSlideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastFadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); }
+}
+
+/* ── Page Entry ──────────────────────────────────────────── */
+
+.tt-root {
+  animation: empFadeIn 0.3s ease both;
+}
+
+.tt-page-header {
+  animation: fadeInUp 0.35s ease both;
+}
+
+/* ── Stat Cards ──────────────────────────────────────────── */
+
+.tt-stat-card {
+  animation: fadeInUp 0.35s ease both;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tt-stat-card:nth-child(1) { animation-delay: 0.04s; }
+.tt-stat-card:nth-child(2) { animation-delay: 0.08s; }
+.tt-stat-card:nth-child(3) { animation-delay: 0.12s; }
+.tt-stat-card:nth-child(4) { animation-delay: 0.16s; }
+
+.tt-stat-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 8px 20px rgba(236, 72, 153, 0.15);
+}
+
+/* ── Timer Card ──────────────────────────────────────────── */
+
+.tt-timer-card {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both;
+  transition: border-color 0.18s ease;
+}
+
+.tt-timer-card.is-running {
+  border-color: rgba(236, 72, 153, 0.4) !important;
+  animation: none;
+}
+
+/* Timer display digits */
+.tt-timer-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+  transition: color 0.3s ease;
+}
+
+.tt-timer-display.is-running {
+  animation: timerTick 1s ease-in-out infinite;
+  color: #fce7f3;
+}
+
+/* Running dot indicator */
+.tt-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--emp-btn-pink);
+  display: inline-block;
+  margin-right: 6px;
+  animation: dotBlink 1.2s ease-in-out infinite;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.tt-btn {
+  transition: transform 0.1s ease, opacity 0.1s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.tt-btn:hover  { transform: translateY(-1px); opacity: 0.9; }
+.tt-btn:active { transform: scale(0.97); }
+
+.tt-btn-start {
+  animation: pulseRing 2.2s ease-in-out infinite;
+}
+
+.tt-btn-start.is-running {
+  animation: pulseRingRed 2.2s ease-in-out infinite;
+}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+
+.tt-tab {
+  transition: color 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.tt-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--emp-btn-pink);
+  border-radius: 1px 1px 0 0;
+  transform: scaleX(0);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tt-tab.active::after {
+  transform: scaleX(1);
+}
+
+/* ── Tab Content Panels ──────────────────────────────────── */
+
+.tt-tab-panel {
+  animation: fadeIn 0.22s ease both;
+}
+
+/* ── Time Log Table ──────────────────────────────────────── */
+
+.tt-log-row {
+  animation: rowSlideIn 0.28s ease both;
+  transition: background 0.12s ease;
+}
+
+.tt-log-row:nth-child(1) { animation-delay: 0.04s; }
+.tt-log-row:nth-child(2) { animation-delay: 0.08s; }
+.tt-log-row:nth-child(3) { animation-delay: 0.12s; }
+.tt-log-row:nth-child(4) { animation-delay: 0.16s; }
+.tt-log-row:nth-child(5) { animation-delay: 0.20s; }
+
+.tt-log-row:hover { background: rgba(255, 255, 255, 0.03); }
+
+/* Duration badge pop */
+.tt-duration-badge {
+  animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Delete button reveal on row hover */
+.tt-log-row .tt-delete-btn {
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.tt-log-row:hover .tt-delete-btn {
+  opacity: 1;
+}
+
+/* ── Weekly Bar Chart ────────────────────────────────────── */
+
+.tt-day-col {
+  animation: fadeInUp 0.35s ease both;
+}
+
+.tt-day-col:nth-child(1) { animation-delay: 0.04s; }
+.tt-day-col:nth-child(2) { animation-delay: 0.08s; }
+.tt-day-col:nth-child(3) { animation-delay: 0.12s; }
+.tt-day-col:nth-child(4) { animation-delay: 0.16s; }
+.tt-day-col:nth-child(5) { animation-delay: 0.20s; }
+.tt-day-col:nth-child(6) { animation-delay: 0.24s; }
+.tt-day-col:nth-child(7) { animation-delay: 0.28s; }
+
+.tt-day-bar {
+  animation: barGrow 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: inherit;
+  transform-origin: bottom;
+}
+
+.tt-day-col:hover .tt-day-bar {
+  filter: brightness(1.12);
+  transition: filter 0.12s ease;
+}
+
+/* Today highlight pulse */
+.tt-day-col.is-today .tt-day-bar {
+  animation: barGrow 0.6s cubic-bezier(0.4, 0, 0.2, 1) both, pulseRing 2.2s ease-in-out 0.7s infinite;
+}
+
+/* ── Progress / Goal Bar ─────────────────────────────────── */
+
+.tt-progress-fill {
+  animation: progressFill 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
+  transition: width 0.35s ease;
+}
+
+/* ── Manual Log Modal ────────────────────────────────────── */
+
+.tt-modal-backdrop {
+  animation: fadeIn 0.18s ease both;
+}
+
+.tt-modal {
+  animation: scaleIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Form Inputs ─────────────────────────────────────────── */
+
+.tt-input {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.tt-input:focus {
+  border-color: rgba(236, 72, 153, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.1);
+}
+
+.tt-select {
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+
+.tt-select:focus {
+  border-color: rgba(236, 72, 153, 0.5) !important;
+}
+
+/* ── Feature Cards ───────────────────────────────────────── */
+
+.tt-feature-card {
+  animation: fadeInUp 0.32s ease both;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.tt-feature-card:nth-child(odd)  { animation-name: slideInLeft; }
+.tt-feature-card:nth-child(even) { animation-name: slideInRight; }
+
+.tt-feature-card:nth-child(1) { animation-delay: 0.03s; }
+.tt-feature-card:nth-child(2) { animation-delay: 0.06s; }
+.tt-feature-card:nth-child(3) { animation-delay: 0.09s; }
+.tt-feature-card:nth-child(4) { animation-delay: 0.12s; }
+.tt-feature-card:nth-child(5) { animation-delay: 0.15s; }
+.tt-feature-card:nth-child(6) { animation-delay: 0.18s; }
+.tt-feature-card:nth-child(7) { animation-delay: 0.21s; }
+.tt-feature-card:nth-child(8) { animation-delay: 0.24s; }
+
+.tt-feature-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  background: rgba(236, 72, 153, 0.08);
+  box-shadow: 0 8px 20px rgba(236, 72, 153, 0.15);
+}
+
+/* ── Toast Notification ──────────────────────────────────– */
+
+.tt-toast {
+  animation: toastSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.tt-toast.is-leaving {
+  animation: toastFadeOut 0.28s ease forwards;
+}
+
+/* ── Skeleton Loader ─────────────────────────────────────── */
+
+.tt-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.09) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ── Utility ─────────────────────────────────────────────── */
+
+.tt-icon-btn {
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+.tt-icon-btn:hover  { color: var(--emp-btn-pink); transform: scale(1.08); }
+.tt-icon-btn:active { transform: scale(0.96); }
+
+.tt-badge {
+  transition: transform 0.15s ease;
+}
+.tt-badge:hover { transform: scale(1.04); }
+
+/* Reduced motion — respect accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Project picker */
+.tt-project-chip {
+  font-family: inherit;
+}
+
+.tt-project-chip:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.tt-project-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tt-project-chip.is-selected {
+  transform: translateY(-1px);
+}
+
+.tt-project-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tt-statGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .tt-timerTop {
+    flex-direction: column;
+    gap: 12px !important;
+  }
+  
+  .tt-timerRight {
+    width: 100%;
+  }
+  
+  .tt-tabBar {
+    gap: 2px;
+  }
+  
+  .tt-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .tt-project-grid {
+    flex-direction: column;
+  }
+
+  .tt-project-chip {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+

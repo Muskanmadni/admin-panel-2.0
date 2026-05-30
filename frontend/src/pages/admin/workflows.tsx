@@ -4,14 +4,14 @@ import {
   Grid, CheckCircle, Clock, Calendar, Search, Filter, Plus, Briefcase, User, 
   Eye, Edit, Trash2, Flag, Building2, DollarSign, Tag, UserPlus
 } from 'lucide-react'
-import BackButton from '../components/BackButton'
-import AdminSidebar from '../components/AdminSidebar'
-import { useSettings } from '../lib/SettingsContext'
-import { api } from '../lib/api'
-import { supabase } from '../lib/supabase'
-import "../styles/workflows.css"
-import '../styles/workflowsidebar.css'
-import '../styles/Dashboard.css'
+import BackButton from '../../components/BackButton'
+import AdminSidebar from '../../components/AdminSidebar'
+import { useSettings } from '../../lib/SettingsContext'
+import { api } from '../../lib/api'
+import { supabase } from '../../lib/supabase'
+import "../../styles/adminStyling/workflows.css"
+import '../../styles/adminStyling/workflowsidebar.css'
+import '../../styles/adminStyling/Dashboard.css'
 
 // Types
 interface Project {
@@ -481,17 +481,6 @@ export default function Workflows() {
                 ))}
               </div>
 
-              {/* Progress Bar */}
-              <div className="progress-section">
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ width: `${project.progress}%` }}
-                  ></div>
-                </div>
-                <span className="progress-percentage">{project.progress}%</span>
-              </div>
-
               {/* Action Icons */}
               <div className="action-icons">
                 <button className="action-btn" title="Assign to Employee" onClick={() => openAssignModal(project.id, project.name)}>
@@ -671,16 +660,6 @@ export default function Workflows() {
               <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>END DATE</span><p style={{ color: '#f1f5f9', margin: '4px 0 0' }}>{viewProject.endDate || '—'}</p></div>
             </div>
 
-            <div>
-              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>PROGRESS</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                <div className="progress-bar" style={{ flex: 1 }}>
-                  <div className="progress-fill" style={{ width: `${viewProject.progress}%` }} />
-                </div>
-                <span style={{ color: '#f1f5f9', fontSize: '0.85rem' }}>{viewProject.progress}%</span>
-              </div>
-            </div>
-
             {viewProject.tags.length > 0 && (
               <div>
                 <span style={{ color: '#64748b', fontSize: '0.75rem' }}>TAGS</span>
@@ -787,3 +766,6 @@ export default function Workflows() {
     </>
   )
 }
+
+
+

@@ -7,17 +7,20 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgetPassword'
 import ResetPassword from './pages/Resetpassword'
-import Dashboard from './pages/Dashboard'
-import EmployeeDashboard from './pages/EmployeeDashboard'
-import Settings from './pages/Settings'
-import Users from './pages/Users'
+import Dashboard from './pages/admin/Dashboard'
+import EmployeeDashboard from './pages/employee/EmployeeDashboard'
+import Settings from './pages/admin/Settings'
+import Users from './pages/admin/Users'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useInactivity } from './hooks/useInactivity'
-import RBACPage from './lib/RBAC/RBACPage'
-import Workflows from './pages/workflows'
-import AdminAssignments from './pages/AdminAssignments'
-import AdminLeave from './pages/AdminLeave'
-import AdminAttendance from './pages/AdminAttendance'
+import RBACPage from './pages/admin/RBACPage'
+import Workflows from './pages/admin/workflows'
+import AdminAssignments from './pages/admin/AdminAssignments'
+import AdminLeave from './pages/admin/AdminLeave'
+import AdminAttendance from './pages/admin/AdminAttendance'
+import AdminTimeTracking from './pages/admin/TimeTracking'
+import AnnouncementManagement from './pages/admin/AnnouncementsManagement'
+import AdminNotifications from './pages/admin/AdminNotifications'
 import { SettingsProvider } from './lib/SettingsContext'
 
 const ADMIN_ROLES = ['admin', 'super_admin']
@@ -57,6 +60,9 @@ function AppRoutes({
       <Route path="/admin/assignments"  element={<ProtectedRoute><AdminAssignments /></ProtectedRoute>} />
       <Route path="/admin/leaves"       element={<ProtectedRoute><AdminLeave /></ProtectedRoute>} />
       <Route path="/admin/attendance"   element={<ProtectedRoute><AdminAttendance /></ProtectedRoute>} />
+      <Route path="/admin/time-tracking" element={<ProtectedRoute><AdminTimeTracking /></ProtectedRoute>} />
+      <Route path="/admin/announcements" element={<ProtectedRoute><AnnouncementManagement /></ProtectedRoute>} />
+      <Route path="/admin/notifications" element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
 
       {/* Default */}
       <Route path="/" element={<Navigate to={homePath} replace />} />

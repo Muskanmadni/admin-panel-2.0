@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 from src.api import deps
+from src.api.notifications import create_notification, notify_admins
 from src.models import User, EmployeeProject
 from src.models.workflow import Project
 from src.models.employee import Employee
@@ -82,6 +83,13 @@ def assign_project(
     employee = db.query(User).filter(User.id == data.employee_id).first()
     if employee:
         project.assignee = employee.full_name or employee.email
+        admin_name = current_user.full_name or current_user.email
+        create_notification(
+            db,
+            user_id=employee.id,
+            message=f'You have been assigned to the project "{project.name}" by {admin_name}.',
+            notification_type="project",
+        )
 
     db.commit()
     db.refresh(ep)
@@ -116,6 +124,15 @@ def reject_project(
     if ep.employee_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     ep.status = "rejected"
+    project = db.query(Project).filter(Project.id == ep.project_id).first()
+    emp_name = current_user.full_name or current_user.email
+    project_name = project.name if project else "a project"
+    notify_admins(
+        db,
+        message=f'{emp_name} rejected the project assignment "{project_name}".',
+        notification_type="project_reject",
+        tenant_id=current_user.tenant_id,
+    )
     db.commit()
     return {"message": "Project rejected"}
 
@@ -132,6 +149,15 @@ def accept_project(
     if ep.employee_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     ep.status = "accepted"
+    project = db.query(Project).filter(Project.id == ep.project_id).first()
+    emp_name = current_user.full_name or current_user.email
+    project_name = project.name if project else "a project"
+    notify_admins(
+        db,
+        message=f'{emp_name} accepted the project assignment "{project_name}".',
+        notification_type="project_accept",
+        tenant_id=current_user.tenant_id,
+    )
     db.commit()
     return {"message": "Project accepted"}
 
@@ -153,8 +179,54 @@ def submit_progress_report(
     if ep.employee_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     ep.progress_report = data.report
+    project = db.query(Project).filter(Project.id == ep.project_id).first()
+    emp_name = current_user.full_name or current_user.email
+    project_name = project.name if project else "a project"
+    preview = data.report[:150] + ("..." if len(data.report) > 150 else "")
+    notify_admins(
+        db,
+        message=f'{emp_name} updated progress on "{project_name}": {preview}',
+        notification_type="project_report",
+        tenant_id=current_user.tenant_id,
+    )
     db.commit()
     return {"message": "Progress report saved"}
+
+
+@router.post("/{assignment_id}/complete")
+def complete_project(
+    assignment_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    ep = db.query(EmployeeProject).filter(EmployeeProject.id == assignment_id).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if ep.employee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if ep.status == "rejected":
+        raise HTTPException(status_code=400, detail="Cannot complete a rejected assignment")
+    if ep.status != "accepted":
+        raise HTTPException(status_code=400, detail="Accept the project assignment before marking it complete")
+
+    project = db.query(Project).filter(Project.id == ep.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.status == "completed":
+        raise HTTPException(status_code=400, detail="Project is already completed")
+
+    project.status = "completed"
+    project.progress = 100
+    ep.status = "completed"
+    emp_name = current_user.full_name or current_user.email
+    notify_admins(
+        db,
+        message=f'{emp_name} marked the project "{project.name}" as complete.',
+        notification_type="project_complete",
+        tenant_id=current_user.tenant_id,
+    )
+    db.commit()
+    return {"message": "Project marked as complete"}
 
 
 @router.get("/", response_model=List[EmployeeProjectOut])

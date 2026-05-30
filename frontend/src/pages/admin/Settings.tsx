@@ -7,10 +7,10 @@ import {
   Save, RotateCcw, LogOut, Home, Users, BarChart2,
   Clock, ChevronRight, Bell, User, Check
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useSettings, applyThemeVars, OrgSettings } from '../lib/SettingsContext'  // ← NEW
-import AdminSidebar from '../components/AdminSidebar'
-import '../styles/Settings.css'
+import { supabase } from '../../lib/supabase'
+import { useSettings, applyThemeVars, OrgSettings } from '../../lib/SettingsContext'  // ← NEW
+import AdminSidebar from '../../components/AdminSidebar'
+import '../../styles/adminStyling/Settings.css'
 
 const THEMES = [
   { id: 'pink-purple', name: 'Pink & Purple', primary: '#ec4899', secondary: '#a855f7', accent: '#8b5cf6', preview: ['#ec4899', '#a855f7', '#8b5cf6'] },
@@ -319,3 +319,5 @@ export default function Settings() {
     </div>
   )
 }
+
+

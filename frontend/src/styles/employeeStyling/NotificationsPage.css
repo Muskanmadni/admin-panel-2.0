@@ -1,0 +1,226 @@
+.emp-notifications {
+  animation: fadeIn 0.35s ease;
+}
+
+.emp-notifications-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.emp-notifications-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  color: #f8fafc;
+}
+
+.emp-notifications-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.emp-notifications-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.emp-notif-badge {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.emp-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(30, 20, 50, 0.8);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.emp-btn-secondary:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+}
+
+.emp-notif-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.emp-notif-filter {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(30, 20, 50, 0.5);
+  border: 1px solid rgba(244, 114, 182, 0.15);
+}
+
+.emp-notif-filter.active {
+  color: #c4b5fd;
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.15);
+}
+
+.emp-notifications-loading,
+.emp-notifications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.emp-notifications-loading .loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(168, 85, 247, 0.2);
+  border-top-color: #a855f7;
+  border-radius: 50%;
+  animation: empNotifSpin 0.8s linear infinite;
+  margin-bottom: 0.75rem;
+}
+
+@keyframes empNotifSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.emp-notifications-empty h3 {
+  margin: 1rem 0 0.5rem;
+  color: #e2e8f0;
+}
+
+.emp-notifications-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.emp-notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(244, 114, 182, 0.18);
+  background: rgba(30, 20, 50, 0.65);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  position: relative;
+}
+
+.emp-notification-item.unread {
+  background: rgba(30, 20, 50, 0.9);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.emp-notification-item:hover {
+  transform: translateX(4px);
+  background: rgba(40, 25, 65, 0.85);
+}
+
+.emp-notification-item.read {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.emp-notif-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emp-notif-icon.type-project {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.emp-notif-icon.type-leave {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.emp-notif-icon.type-general {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.emp-notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.emp-notif-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.emp-notif-type {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a855f7;
+}
+
+.emp-notification-item.type-leave .emp-notif-type {
+  color: #4ade80;
+}
+
+.emp-notif-time {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.emp-notif-message {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.emp-notif-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 6px;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+}

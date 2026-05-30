@@ -150,6 +150,8 @@
 /* Sidebar */
 .emp-sidebar {
   width: 280px;
+  height: 100vh;
+  min-height: 0;
   background: linear-gradient(
     145deg,
     rgba(20, 10, 40, 0.95) 0%,
@@ -161,6 +163,7 @@
   flex-direction: column;
   position: relative;
   z-index: 10;
+  overflow: hidden;
   animation: empSlideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -239,7 +242,19 @@
 
 .emp-nav {
   flex: 1;
+  min-height: 0;
   padding: 1rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.emp-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emp-nav::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.35);
+  border-radius: 3px;
 }
 
 .emp-nav-item {
@@ -285,9 +300,58 @@
   height: 70%;
 }
 
+.emp-nav-item .emp-nav-label {
+  flex: 1;
+  text-align: left;
+}
+
+.emp-nav-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .emp-sidebar-footer {
+  flex-shrink: 0;
   padding: 1.5rem;
   border-top: 1px solid rgba(236, 72, 153, 0.1);
+}
+
+.emp-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 90;
+  backdrop-filter: blur(2px);
+}
+
+.emp-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  background: rgba(236, 72, 153, 0.1);
+  color: #f8f0ff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.emp-menu-toggle:hover {
+  background: rgba(236, 72, 153, 0.2);
 }
 
 .emp-user-section {
@@ -398,6 +462,13 @@
   border-bottom: 1px solid rgba(236, 72, 153, 0.1);
 }
 
+.emp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
 .emp-header-title {
   font-size: 2rem;
   font-weight: 700;
@@ -439,16 +510,56 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #a78bbd;
   cursor: pointer;
+  color: #a78bbd;
   transition: all 0.3s ease;
 }
 
-.emp-notification-btn:hover {
-  background: rgba(236, 72, 153, 0.1);
-  border-color: rgba(236, 72, 153, 0.4);
+.emp-notification-btn:hover,
+.emp-notification-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.45);
   color: #f8f0ff;
   transform: translateY(-2px);
+}
+
+.emp-active-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  background: rgba(236, 72, 153, 0.15);
+  color: #f9a8d4;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  animation: empTimerPulse 2s ease-in-out infinite;
+}
+
+.emp-active-timer-pill:hover {
+  background: rgba(236, 72, 153, 0.28);
+  transform: translateY(-1px);
+}
+
+.emp-active-timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+@keyframes empTimerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(236, 72, 153, 0); }
+}
+
+.emp-time-tracking-slot {
+  width: 100%;
 }
 
 .emp-notification-dot {
@@ -588,6 +699,28 @@
 
 @keyframes empSpin {
   to { transform: rotate(360deg); }
+}
+
+.emp-notifications-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.emp-notifications-banner:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Stats Grid */
@@ -877,6 +1010,11 @@
   color: #22c55e;
   font-size: 0.8rem;
   font-weight: 600;
+}
+.emp-profile-badge.inactive {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
 }
 
 .emp-profile-details {
@@ -1588,6 +1726,15 @@
   transition: all 0.3s ease;
 }
 
+.emp-form-group select {
+  color-scheme: dark;
+}
+
+.emp-form-group select option {
+  background: #1a0a2e;
+  color: #f0e6ff;
+}
+
 .emp-form-group input:focus,
 .emp-form-group select:focus,
 .emp-form-group textarea:focus {
@@ -1632,15 +1779,32 @@
   .employee-dashboard {
     flex-direction: column;
   }
+
+  .emp-menu-toggle {
+    display: inline-flex;
+  }
+
+  .emp-sidebar-overlay {
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .emp-sidebar-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
   
   .emp-sidebar {
-    width: 100%;
+    width: min(300px, 88vw);
     position: fixed;
     left: -100%;
     top: 0;
     height: 100vh;
     z-index: 100;
     transition: left 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
   }
   
   .emp-sidebar.open {
@@ -1649,6 +1813,7 @@
   
   .emp-main-content {
     margin-left: 0;
+    width: 100%;
   }
   
   .emp-header {

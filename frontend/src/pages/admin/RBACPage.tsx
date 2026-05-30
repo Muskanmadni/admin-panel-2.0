@@ -1,11 +1,11 @@
 // src/lib/RBAC/RBACPage.tsx
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { PERMISSION_GROUPS, actionColor, rbacApi, DEFAULT_ROLES, INITIAL_AUDIT } from "./service";
-import { useRBAC } from "./hooks";
-import { Role, AuditLog, TempAccess } from "./types";
-import { useSettings } from "../SettingsContext";
-import { supabase } from "../supabase";
+import { PERMISSION_GROUPS, actionColor, rbacApi, DEFAULT_ROLES, INITIAL_AUDIT } from "../../lib/RBAC/service";
+import { useRBAC } from "../../lib/RBAC/hooks";
+import { Role, AuditLog, TempAccess } from "../../lib/RBAC/types";
+import { useSettings } from "../../lib/SettingsContext";
+import { supabase } from "../../lib/supabase";
 
 /* ─────────────────────────────────────────────
    3D Tilt card hook
@@ -984,3 +984,4 @@ export default function RBACPage() {
     </div>
   );
 }
+

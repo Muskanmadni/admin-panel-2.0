@@ -8,14 +8,14 @@ import {
   UserCheck, Activity
 } from 'lucide-react'
 
-import { supabase, dbHelpers } from '../lib/supabase'
-import { api } from '../lib/api'
-import { logActivity } from '../lib/activity'
-import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
-import AdminSidebar from '../components/AdminSidebar'
+import { supabase, dbHelpers } from '../../lib/supabase'
+import { api } from '../../lib/api'
+import { logActivity } from '../../lib/activity'
+import { ROLE_LABELS, ROLE_COLORS } from '../../lib/roleConstants'
+import AdminSidebar from '../../components/AdminSidebar'
 
-import '../styles/Dashboard.css'
-import '../styles/Users.css'
+import '../../styles/adminStyling/Dashboard.css'
+import '../../styles/adminStyling/Users.css'
 
 // ============================================================================
 // API WRAPPERS FOR NEON DATABASE
@@ -462,3 +462,5 @@ export default function Users() {
     </div>
   )
 }
+
+

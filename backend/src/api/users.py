@@ -1,5 +1,6 @@
 from typing import List, Optional, Any
 from uuid import UUID
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
@@ -25,6 +26,7 @@ class UserResponse(BaseModel):
     position: Optional[str] = None
     phone_number: Optional[str] = None
     address: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -122,6 +124,7 @@ def get_current_user_info(
         "user_type": current_user.user_type,
         "role": current_user.role,
         "is_active": current_user.is_active,
+        "created_at": current_user.created_at,
     }
 
     if current_user.user_type == 'individual':
