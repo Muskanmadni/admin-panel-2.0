@@ -1,3 +1,23 @@
+/* Signup form — keep input text clear of left icons and password toggle */
+form.login-form .input-wrapper input {
+  padding-left: 3.5rem;
+  padding-right: 1rem;
+}
+
+form.login-form .input-wrapper:has(.toggle-password) input {
+  padding-left: 3.75rem;
+  padding-right: 3.75rem;
+}
+
+form.login-form .input-wrapper:has(.toggle-password) input[type="text"] {
+  padding-left: 4.5rem;
+  padding-right: 3.75rem;
+}
+
+form.login-form .input-icon {
+  left: 14px;
+}
+
 /* Password Checklist */
 .password-checklist {
   list-style: none;

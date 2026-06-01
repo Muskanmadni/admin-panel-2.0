@@ -21,6 +21,7 @@ import AdminAttendance from './pages/admin/AdminAttendance'
 import AdminTimeTracking from './pages/admin/TimeTracking'
 import AnnouncementManagement from './pages/admin/AnnouncementsManagement'
 import AdminNotifications from './pages/admin/AdminNotifications'
+import ProjectReport from './pages/admin/ProjectReport'
 import { SettingsProvider } from './lib/SettingsContext'
 
 const ADMIN_ROLES = ['admin', 'super_admin']
@@ -58,6 +59,7 @@ function AppRoutes({
       <Route path="/workflows"          element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
       <Route path="/admin/rbac"         element={<ProtectedRoute><RBACPage /></ProtectedRoute>} />
       <Route path="/admin/assignments"  element={<ProtectedRoute><AdminAssignments /></ProtectedRoute>} />
+      <Route path="/admin/project-reports" element={<ProtectedRoute><ProjectReport /></ProtectedRoute>} />
       <Route path="/admin/leaves"       element={<ProtectedRoute><AdminLeave /></ProtectedRoute>} />
       <Route path="/admin/attendance"   element={<ProtectedRoute><AdminAttendance /></ProtectedRoute>} />
       <Route path="/admin/time-tracking" element={<ProtectedRoute><AdminTimeTracking /></ProtectedRoute>} />

@@ -78,6 +78,9 @@ function getActionLink(type: string): { path: string; label: string } | null {
   if (type === 'leave_request' || type === 'leave') {
     return { path: '/admin/leaves', label: 'View leave requests' }
   }
+  if (type === 'project_report') {
+    return { path: '/admin/project-reports', label: 'View project reports' }
+  }
   if (type.startsWith('project')) {
     return { path: '/admin/assignments', label: 'View assignments' }
   }
