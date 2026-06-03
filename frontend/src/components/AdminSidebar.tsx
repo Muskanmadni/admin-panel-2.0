@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Users, BarChart2, Shield, ClipboardList, Clock, Settings, ChevronRight, Wifi, WifiOff, UserPlus, Timer, Megaphone, Bell, FileText } from 'lucide-react'
+import { Home, Users, BarChart2, Shield, ClipboardList, Clock, Settings, ChevronRight, Wifi, WifiOff, UserPlus, Timer, Megaphone, Bell, FileText, Activity } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getMyRole } from '../pages/admin/Dashboard'
 import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
@@ -8,6 +8,7 @@ import { useSettings } from '../lib/SettingsContext'
 
 const navItems = [
   { path: '/dashboard', icon: <Home size={18} />, label: 'Dashboard' },
+  { path: '/admin/activity', icon: <Activity size={18} />, label: 'Live Activity' },
   { path: '/users', icon: <Users size={18} />, label: 'Users' },
   { path: '/workflows', icon: <BarChart2 size={18} />, label: 'Workflows' },
   { path: '/admin/assignments', icon: <UserPlus size={18} />, label: 'Assignments' },

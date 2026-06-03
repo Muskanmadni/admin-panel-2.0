@@ -1,4 +1,5 @@
 export { default as Dashboard } from './Dashboard'
+export { default as LiveActivity } from './LiveActivity'
 export { default as Users } from './Users'
 export { default as Settings } from './Settings'
 export { default as Workflows } from './workflows'

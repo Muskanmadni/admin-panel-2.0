@@ -8,7 +8,8 @@ import {
 
 // Internal imports
 import { supabase, dbHelpers } from '../../lib/supabase'
-import { getActivityLogs, ActivityLog, timeAgo, ACTION_ICONS } from '../../lib/activity'
+import { getActivityLogs, logActivity, ActivityLog } from '../../lib/activity'
+import ActivityFeedList from '../../components/ActivityFeedList'
 import { api } from '../../lib/api'
 import { ROLE_LABELS, ROLE_COLORS } from '../../lib/roleConstants'
 import '../../styles/adminStyling/Dashboard.css'
@@ -160,6 +161,16 @@ export default function Dashboard() {
         setMyRole(role)
         setActivityLogs(logs)
         setStats(dashboardStats)
+
+        if (['admin', 'super_admin', 'manager'].includes(role)) {
+          const sessionKey = `dash_activity_${authUser.id}`
+          if (!sessionStorage.getItem(sessionKey)) {
+            await logActivity('login', 'Dashboard', 'Opened admin dashboard')
+            sessionStorage.setItem(sessionKey, '1')
+            const refreshed = await getActivityLogs(8)
+            setActivityLogs(refreshed.length ? refreshed : logs)
+          }
+        }
       } catch (err) {
         console.error('Error initialising dashboard:', err)
       } finally {
@@ -192,6 +203,7 @@ export default function Dashboard() {
 
   const navItems = [
     { id: 'dashboard', icon: <Home size={18} />, label: 'Dashboard' },
+    { id: 'admin/activity', icon: <Activity size={18} />, label: 'Live Activity' },
     { id: 'users', icon: <Users size={18} />, label: 'Users' },
     { id: 'workflows', icon: <BarChart2 size={18} />, label: 'Workflows' },
     { id: 'admin/rbac', icon: <Shield size={18} />, label: 'RBAC Access' },
@@ -302,6 +314,7 @@ export default function Dashboard() {
 // WIDGETS COMPONENT (Original Dashboard Content)
 // ============================================================================
 function DashboardWidgets({ activityLogs, stats }: { activityLogs: ActivityLog[], stats: DashboardStats | null }) {
+  const navigate = useNavigate()
   const displayStats = [
     { 
       label: 'Total Users', 
@@ -350,23 +363,20 @@ function DashboardWidgets({ activityLogs, stats }: { activityLogs: ActivityLog[]
       </div>
       <div className="dash-mid-row" style={{ marginTop: '24px' }}>
         <div className="dash-card">
-          <div className="dash-card-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={16} style={{ color: '#ec4899' }} /> Live Activity Feed</h2></div>
-          {activityLogs.length === 0 ? (
-            <div className="dash-activity-empty"><Activity size={32} /><p>No activity yet.</p></div>
-          ) : (
-            <div className="activity-feed">
-              {activityLogs.map((log, i) => (
-                <div key={log.id} className="activity-item" style={{ animationDelay: `${i * 0.05}s` }}>
-                  <div className="activity-icon">{ACTION_ICONS[log.action] || '📋'}</div>
-                  <div className="activity-body">
-                    <div className="activity-top"><span className="activity-email">{log.user_email}</span><span className="activity-section-tag">{log.section}</span></div>
-                    <p className="activity-action"><strong>{log.action}</strong>{log.details && ` — ${log.details}`}</p>
-                  </div>
-                  <span className="activity-time">{timeAgo(log.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="dash-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <Activity size={16} style={{ color: '#ec4899' }} /> Live Activity Feed
+            </h2>
+            <button
+              type="button"
+              className="dash-action-btn"
+              style={{ padding: '8px 14px', fontSize: '12px' }}
+              onClick={() => navigate('/admin/activity')}
+            >
+              View all
+            </button>
+          </div>
+          <ActivityFeedList logs={activityLogs} />
         </div>
       </div>
     </>

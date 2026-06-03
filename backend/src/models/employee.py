@@ -107,3 +107,17 @@ class Announcement(Base, TimestampMixin):
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
 
     author = relationship("User", foreign_keys=[created_by])
+
+
+class ActivityLog(Base, TimestampMixin):
+    __tablename__ = "activity_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
+    user_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    section: Mapped[str] = mapped_column(String(100), nullable=False)
+    details: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tenant.id"), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])

@@ -22,6 +22,7 @@ import AdminTimeTracking from './pages/admin/TimeTracking'
 import AnnouncementManagement from './pages/admin/AnnouncementsManagement'
 import AdminNotifications from './pages/admin/AdminNotifications'
 import ProjectReport from './pages/admin/ProjectReport'
+import LiveActivity from './pages/admin/LiveActivity'
 import { SettingsProvider } from './lib/SettingsContext'
 
 const ADMIN_ROLES = ['admin', 'super_admin']
@@ -65,6 +66,7 @@ function AppRoutes({
       <Route path="/admin/time-tracking" element={<ProtectedRoute><AdminTimeTracking /></ProtectedRoute>} />
       <Route path="/admin/announcements" element={<ProtectedRoute><AnnouncementManagement /></ProtectedRoute>} />
       <Route path="/admin/notifications" element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
+      <Route path="/admin/activity" element={<ProtectedRoute><LiveActivity /></ProtectedRoute>} />
 
       {/* Default */}
       <Route path="/" element={<Navigate to={homePath} replace />} />
