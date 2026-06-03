@@ -107,6 +107,25 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Appearance options (Settings page) ── */
+body.sidebar-light .dash-sidebar {
+  background: rgba(248, 244, 255, 0.92);
+  border-right-color: rgba(168, 85, 247, 0.2);
+}
+
+body.sidebar-light .dash-nav-item { color: #5b4a6a; }
+body.sidebar-light .dash-nav-item:hover,
+body.sidebar-light .dash-nav-item.active { color: var(--theme-primary); }
+body.sidebar-light .dash-mini-name,
+body.sidebar-light .dash-logo-name { -webkit-text-fill-color: unset; color: #1e1030; }
+body.sidebar-light .dash-mini-email,
+body.sidebar-light .dash-logo-sub { color: #6b5a7a; }
+
+body.compact-mode .dash-nav-item { padding: 8px 12px; font-size: 13px; }
+body.compact-mode .dash-topbar { padding: 14px 20px; }
+body.compact-mode .dash-content { padding: 16px 20px; }
+body.compact-mode .dash-card { padding: 16px; }
+
 /* ── Sidebar ── */
 .dash-sidebar {
   width: 260px;

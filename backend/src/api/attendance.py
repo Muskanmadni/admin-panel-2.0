@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
@@ -10,6 +11,7 @@ from src.models import User
 from src.models.employee import Attendance
 
 router = APIRouter()
+PKT = ZoneInfo("Asia/Karachi")
 
 
 class AttendanceOut(BaseModel):
@@ -29,12 +31,25 @@ class AttendanceIn(BaseModel):
     date: str | None = None  # client local date YYYY-MM-DD; falls back to server date
 
 
+def _now_pkt() -> datetime:
+    return datetime.now(PKT)
+
+
 def _time_now() -> str:
-    return datetime.now().strftime("%H:%M")
+    return _now_pkt().strftime("%H:%M")
 
 
 def _today() -> str:
-    return date.today().isoformat()
+    return _now_pkt().date().isoformat()
+
+
+def _calc_hours(today: str, check_in: str, check_out: str) -> float:
+    try:
+        ci = datetime.strptime(f"{today} {check_in}", "%Y-%m-%d %H:%M")
+        co = datetime.strptime(f"{today} {check_out}", "%Y-%m-%d %H:%M")
+        return round((co - ci).total_seconds() / 3600, 2)
+    except Exception:
+        return 0.0
 
 
 @router.post("/check-in", response_model=AttendanceOut)
@@ -49,7 +64,7 @@ def check_in(
         Attendance.date == today
     ).first()
     if existing and existing.check_in:
-        raise HTTPException(status_code=400, detail="Already checked in today")
+        return existing
 
     if existing:
         existing.check_in = _time_now()
@@ -83,17 +98,10 @@ def check_out(
     ).first()
     if not record or not record.check_in:
         raise HTTPException(status_code=400, detail="No check-in found for today")
-    if record.check_out:
-        raise HTTPException(status_code=400, detail="Already checked out today")
 
     now = _time_now()
     record.check_out = now
-    try:
-        ci = datetime.strptime(f"{today} {record.check_in}", "%Y-%m-%d %H:%M")
-        co = datetime.strptime(f"{today} {now}", "%Y-%m-%d %H:%M")
-        record.hours = round((co - ci).seconds / 3600, 2)
-    except Exception:
-        record.hours = 0.0
+    record.hours = _calc_hours(today, record.check_in, now)
     db.commit()
     db.refresh(record)
     return record

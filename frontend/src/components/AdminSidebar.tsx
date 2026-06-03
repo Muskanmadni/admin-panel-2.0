@@ -4,6 +4,7 @@ import { Home, Users, BarChart2, Shield, ClipboardList, Clock, Settings, Chevron
 import { supabase } from '../lib/supabase'
 import { getMyRole } from '../pages/admin/Dashboard'
 import { ROLE_LABELS, ROLE_COLORS } from '../lib/roleConstants'
+import { useSettings } from '../lib/SettingsContext'
 
 const navItems = [
   { path: '/dashboard', icon: <Home size={18} />, label: 'Dashboard' },
@@ -23,6 +24,7 @@ const navItems = [
 export default function AdminSidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { settings } = useSettings()
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [myRole, setMyRole] = useState<string>('')
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -48,10 +50,18 @@ export default function AdminSidebar() {
     <aside className="dash-sidebar">
       <div className="dash-logo">
         <div className="dash-logo-img-wrap">
-          <img src="/logo.png" alt="Logo" className="dash-logo-img" onError={e => { e.currentTarget.style.display = 'none' }} />
+          <img
+            src={settings.logoUrl || '/logo.png'}
+            alt="Logo"
+            className="dash-logo-img"
+            onError={e => { e.currentTarget.src = '/logo.png' }}
+          />
           <div className="dash-logo-glow"></div>
         </div>
-        <div><span className="dash-logo-name">CliCLTake</span><span className="dash-logo-sub">Admin Panel</span></div>
+        <div>
+          <span className="dash-logo-name">{settings.orgName}</span>
+          <span className="dash-logo-sub">{settings.orgTagline}</span>
+        </div>
       </div>
 
       <nav className="dash-nav">

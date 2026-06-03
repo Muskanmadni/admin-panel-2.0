@@ -4,12 +4,13 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Settings as SettingsIcon, Palette, Building2, Image,
-  Save, RotateCcw, LogOut, Home, Users, BarChart2,
-  Clock, ChevronRight, Bell, User, Check
+  Save, RotateCcw, LogOut, Bell, User, Check
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useSettings, applyThemeVars, OrgSettings } from '../../lib/SettingsContext'  // ← NEW
+import { useSettings, OrgSettings } from '../../lib/SettingsContext'
+import { getMyRole } from './Dashboard'
 import AdminSidebar from '../../components/AdminSidebar'
+import '../../styles/adminStyling/Dashboard.css'
 import '../../styles/adminStyling/Settings.css'
 
 const THEMES = [
@@ -38,26 +39,31 @@ export default function Settings() {
   }, [settings.logoUrl])
 
   useEffect(() => {
+    getMyRole().then(role => {
+      if (!['admin', 'super_admin'].includes(role)) {
+        navigate('/employee-dashboard', { replace: true })
+      }
+    })
+
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
-        setUser({ name: data.user.user_metadata?.name || 'User', email: data.user.email || '' })
-        // only update if fields are empty (don't overwrite what user typed)
-        if (!settings.adminEmail) {
-          updateSettings({
-            adminEmail: data.user.email || '',
-            adminName:  data.user.user_metadata?.name || '',
-          })
-        }
+        const name = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User'
+        setUser({ name, email: data.user.email || '' })
+        updateSettings({
+          adminEmail: data.user.email || '',
+          adminName: settings.adminName || name,
+        })
       } else {
         navigate('/login')
       }
     })
+
     const handle = (e: MouseEvent) => {
       if (!(e.target as HTMLElement).closest('.user-menu-wrapper')) setShowUserMenu(false)
     }
     document.addEventListener('click', handle)
     return () => document.removeEventListener('click', handle)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const handleThemeSelect = (theme: typeof THEMES[0]) => {

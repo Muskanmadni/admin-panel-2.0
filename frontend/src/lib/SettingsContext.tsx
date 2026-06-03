@@ -57,9 +57,9 @@ export const applyThemeVars = (s: OrgSettings) => {
   r.style.setProperty('--color-primary',    s.primaryColor)
   r.style.setProperty('--color-secondary',  s.secondaryColor)
   r.style.setProperty('--color-accent',     s.accentColor)
-  // compact mode class on body
   document.body.classList.toggle('compact-mode', s.compactMode)
   document.body.classList.toggle('sidebar-light', !s.sidebarDark)
+  document.title = s.orgTagline ? `${s.orgName} — ${s.orgTagline}` : s.orgName
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -86,11 +86,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const saveSettings = useCallback((s?: OrgSettings) => {
-    const toSave = s ?? settings
-    localStorage.setItem('orgSettings', JSON.stringify(toSave))
-    applyThemeVars(toSave)
-    if (s) setSettings(s)
-  }, [settings])
+    if (s) {
+      localStorage.setItem('orgSettings', JSON.stringify(s))
+      applyThemeVars(s)
+      setSettings(s)
+      return
+    }
+    setSettings(current => {
+      localStorage.setItem('orgSettings', JSON.stringify(current))
+      applyThemeVars(current)
+      return current
+    })
+  }, [])
 
   const resetSettings = useCallback(() => {
     localStorage.removeItem('orgSettings')

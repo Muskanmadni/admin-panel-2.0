@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "../../styles/employeeStyling/TimeTracking.css";
 import { api } from "../../lib/api";
+import { getPakistanToday } from "../../lib/pakistanTime";
 import {
   loadActiveTimer,
   saveActiveTimer,
@@ -386,7 +387,24 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
     }, 3000);
   }, []);
 
-  const handleStartStop = () => {
+  const syncAttendanceCheckIn = async () => {
+    try {
+      await api.post("/attendance/check-in", { date: getPakistanToday() });
+    } catch {
+      // Already checked in today — keep existing record
+    }
+  };
+
+  const syncAttendanceCheckOut = async () => {
+    try {
+      await api.post("/attendance/check-out", { date: getPakistanToday() });
+    } catch (err) {
+      console.error("Check-out failed:", err);
+      addToast("Attendance check-out could not be saved", "error");
+    }
+  };
+
+  const handleStartStop = async () => {
     if (!isRunning) {
       if (!activeProject) {
         addToast("Select an accepted project before starting the timer.", "error");
@@ -402,7 +420,8 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
         activeTask,
         activeTag,
       });
-      addToast("Timer started", "info");
+      await syncAttendanceCheckIn();
+      addToast("Timer started — check-in recorded (PKT)", "info");
     } else {
       setIsRunning(false);
       clearActiveTimer();
@@ -425,6 +444,7 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
         duration,
         tag: activeTag,
       };
+      await syncAttendanceCheckOut();
       saveEntry(entry);
       setElapsed(0);
       startRef.current = null;
