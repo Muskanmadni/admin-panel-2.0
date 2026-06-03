@@ -10,7 +10,6 @@ export interface Announcement {
   content: string
   priority: 'low' | 'medium' | 'high'
   status: string
-  image?: string | null
   expires_at?: string | null
   created_at: string
   created_by_name?: string | null
@@ -94,11 +93,6 @@ export default function AnnouncementsPage() {
             const expanded = expandedId === item.id
             return (
               <article key={item.id} className={`emp-announcement-card priority-${item.priority}`}>
-                {item.image && (
-                  <div className="emp-announcement-image-wrap">
-                    <img src={item.image} alt={item.title} />
-                  </div>
-                )}
                 <div className="emp-announcement-body">
                   <div className="emp-announcement-top">
                     <span className={`emp-priority-badge priority-${item.priority}`}>

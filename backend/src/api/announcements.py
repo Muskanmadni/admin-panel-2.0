@@ -23,7 +23,6 @@ class AnnouncementIn(BaseModel):
     content: str = ""
     priority: str = "medium"
     status: str = "draft"
-    image: Optional[str] = None
     expires_at: Optional[str] = None
 
 
@@ -34,7 +33,6 @@ class AnnouncementOut(BaseModel):
     content: str
     priority: str
     status: str
-    image: Optional[str]
     expires_at: Optional[str]
     created_by: UUID
     created_at: datetime
@@ -67,7 +65,6 @@ def _to_out(row: Announcement, author: User | None = None) -> dict:
         "content": row.content or "",
         "priority": row.priority,
         "status": row.status,
-        "image": row.image,
         "expires_at": row.expires_at,
         "created_by": row.created_by,
         "created_at": row.created_at,
@@ -114,7 +111,6 @@ def create_announcement(
         content=data.content or "",
         priority=data.priority,
         status=data.status,
-        image=data.image,
         expires_at=data.expires_at,
         created_by=current_user.id,
     )
@@ -144,7 +140,6 @@ def update_announcement(
     row.content = data.content or ""
     row.priority = data.priority
     row.status = data.status
-    row.image = data.image
     row.expires_at = data.expires_at
     db.commit()
     db.refresh(row)

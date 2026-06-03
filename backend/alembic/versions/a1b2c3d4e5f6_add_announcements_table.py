@@ -28,7 +28,6 @@ def upgrade():
         sa.Column('content', sa.Text(), nullable=False, server_default=''),
         sa.Column('priority', sa.String(20), nullable=False, server_default='medium'),
         sa.Column('status', sa.String(20), nullable=False, server_default='draft'),
-        sa.Column('image', sa.Text(), nullable=True),
         sa.Column('expires_at', sa.String(30), nullable=True),
         sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('user.id'), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),

@@ -111,18 +111,6 @@
   border-left: 4px solid #22c55e;
 }
 
-.emp-announcement-image-wrap {
-  max-height: 220px;
-  overflow: hidden;
-}
-
-.emp-announcement-image-wrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 .emp-announcement-body {
   padding: 1.25rem 1.5rem;
 }

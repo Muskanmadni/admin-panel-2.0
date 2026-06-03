@@ -103,7 +103,6 @@ class Announcement(Base, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
-    image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     expires_at: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
 

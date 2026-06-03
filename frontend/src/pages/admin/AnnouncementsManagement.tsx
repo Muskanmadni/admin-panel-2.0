@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { api } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
-import { Megaphone, Plus, X, Edit, Trash2, Send, Calendar, AlertCircle, CheckCircle, Clock, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Megaphone, Plus, X, Edit, Trash2, Send, Calendar, AlertCircle, CheckCircle, Clock, Sparkles } from 'lucide-react';
 import { useSettings } from '../../lib/SettingsContext';
 import AdminSidebar from '../../components/AdminSidebar';
 import '../../styles/adminStyling/Dashboard.css';
@@ -20,7 +20,6 @@ export interface Announcement {
   status: 'draft' | 'published' | 'archived';
   priority: 'low' | 'medium' | 'high';
   expires_at?: string | null;
-  image?: string | null;
   created_by_name?: string | null;
 }
 
@@ -30,7 +29,6 @@ interface AnnouncementPayload {
   content: string;
   priority: string;
   status: string;
-  image?: string;
 }
 
 export default function AnnouncementManagement() {
@@ -53,14 +51,12 @@ export default function AnnouncementManagement() {
     content: string;
     priority: 'low' | 'medium' | 'high';
     status: 'draft' | 'published' | 'archived';
-    image: string;
   }>({
     title: '',
     description: '',
     content: '',
     priority: 'medium',
     status: 'draft',
-    image: '',
   });
 
   // Fetch announcements on mount and initialize user
@@ -135,20 +131,6 @@ export default function AnnouncementManagement() {
     }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          image: reader.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -167,7 +149,6 @@ export default function AnnouncementManagement() {
         content: formData.content,
         priority: formData.priority,
         status: formData.status,
-        image: formData.image || undefined,
       };
 
       if (editingId) {
@@ -187,7 +168,6 @@ export default function AnnouncementManagement() {
         content: '',
         priority: 'medium',
         status: 'draft',
-        image: '',
       });
       setEditingId(null);
       setShowForm(false);
@@ -208,7 +188,6 @@ export default function AnnouncementManagement() {
       content: announcement.content,
       priority: announcement.priority,
       status: announcement.status,
-      image: announcement.image || '',
     });
     setEditingId(announcement.id);
     setShowForm(true);
@@ -309,7 +288,6 @@ export default function AnnouncementManagement() {
                 content: '',
                 priority: 'medium',
                 status: 'draft',
-                image: '',
               });
             }}
             style={{
@@ -598,95 +576,6 @@ export default function AnnouncementManagement() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem', transform: 'translateZ(10px)' }}>
-              <label style={{ color: '#e2e8f0', fontSize: '0.875rem', fontWeight: '600' }}>
-                Image
-              </label>
-              <div style={{
-                position: 'relative',
-                border: '2px dashed rgba(139, 92, 246, 0.3)',
-                borderRadius: '10px',
-                padding: '2rem',
-                textAlign: 'center',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-                transform: 'translateZ(5px)',
-                transformStyle: 'preserve-3d'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#8b5cf6';
-                e.currentTarget.style.background = 'rgba(139, 92, 246, 0.05)';
-                e.currentTarget.style.transform = 'translateZ(10px) rotateX(5deg)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.transform = 'translateZ(5px) rotateX(0deg)';
-              }}
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    cursor: 'pointer'
-                  }}
-                />
-                <ImageIcon size={32} style={{ color: '#8b5cf6', marginBottom: '0.5rem', transform: 'translateZ(10px)' }} />
-                <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.875rem', transform: 'translateZ(5px)' }}>
-                  {formData.image ? 'Change image' : 'Click to upload image'}
-                </p>
-              </div>
-              {formData.image && (
-                <div style={{ marginTop: '1rem', position: 'relative', transform: 'translateZ(15px)' }}>
-                  <img
-                    src={formData.image}
-                    alt="Preview"
-                    style={{
-                      width: '100%',
-                      maxHeight: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(139, 92, 246, 0.3)',
-                      transform: 'translateZ(5px)',
-                      transition: 'transform 0.3s ease'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, image: '' })}
-                    style={{
-                      position: 'absolute',
-                      top: '0.5rem',
-                      right: '0.5rem',
-                      background: 'rgba(239, 68, 68, 0.9)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '0.5rem',
-                      cursor: 'pointer',
-                      color: '#fff',
-                      transform: 'translateZ(20px)',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateZ(25px) scale(1.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateZ(20px) scale(1)';
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', transformStyle: 'preserve-3d' }}>
               <button
                 type="button"
@@ -856,35 +745,6 @@ export default function AnnouncementManagement() {
                       e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.2)';
                     }}
                   >
-                    {announcement.image && (
-                      <div style={{ position: 'relative', height: '180px', overflow: 'hidden' }}>
-                        <img
-                          src={announcement.image}
-                          alt={announcement.title}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                          }}
-                        />
-                        <div style={{
-                          position: 'absolute',
-                          top: '1rem',
-                          right: '1rem',
-                          padding: '0.375rem 0.75rem',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase',
-                          background: priorityColors.bg,
-                          border: `1px solid ${priorityColors.border}`,
-                          color: priorityColors.text
-                        }}>
-                          {announcement.priority}
-                        </div>
-                      </div>
-                    )}
-                    
                     <div style={{ padding: '1.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                         <h3 style={{
@@ -897,21 +757,19 @@ export default function AnnouncementManagement() {
                         }}>
                           {announcement.title}
                         </h3>
-                        {!announcement.image && (
-                          <span style={{
-                            padding: '0.375rem 0.75rem',
-                            borderRadius: '20px',
-                            fontSize: '0.75rem',
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            background: priorityColors.bg,
-                            border: `1px solid ${priorityColors.border}`,
-                            color: priorityColors.text,
-                            marginLeft: '0.75rem'
-                          }}>
-                            {announcement.priority}
-                          </span>
-                        )}
+                        <span style={{
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: '20px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          background: priorityColors.bg,
+                          border: `1px solid ${priorityColors.border}`,
+                          color: priorityColors.text,
+                          marginLeft: '0.75rem'
+                        }}>
+                          {announcement.priority}
+                        </span>
                       </div>
 
                       <p style={{
