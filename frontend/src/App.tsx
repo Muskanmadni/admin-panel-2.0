@@ -49,6 +49,7 @@ function AppRoutes({
       {/* Public */}
       <Route path="/login"           element={<Login setIsAuthenticated={setIsAuthenticated} />} />
       <Route path="/signup"          element={<Signup setIsAuthenticated={setIsAuthenticated} />} />
+      <Route path="/signup/*"        element={<Navigate to="/signup" replace />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password"  element={<ResetPassword />} />
 

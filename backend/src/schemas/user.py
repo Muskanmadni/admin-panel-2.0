@@ -7,7 +7,7 @@ class UserBase(BaseModel):
     supabase_user_id: Optional[UUID]
     email: str
     full_name: Optional[str] = None
-    user_type: str  # 'organizational' or 'individual'
+    user_type: str  # 'employee'
     role: str = "employee"
     is_active: bool = True
     is_superuser: bool = False

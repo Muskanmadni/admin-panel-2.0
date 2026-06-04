@@ -11,7 +11,7 @@ import urllib.request
 
 from src.config.settings import settings
 from src.database.session import SessionLocal
-from src.models import User, IndividualUser, Employee
+from src.models import User, Employee
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,10 @@ async def get_current_user(
             user_metadata = payload.get("user_metadata", {})
             email = payload.get("email", "")
             full_name = user_metadata.get("full_name") or payload.get("full_name")
-            user_type = user_metadata.get("account_type", "individual")
-            
+            user_type = user_metadata.get("account_type", "employee")
+            if user_type != "employee":
+                user_type = "employee"
+
             user = User(
                 supabase_user_id=user_id,
                 email=email,
@@ -104,23 +106,14 @@ async def get_current_user(
             )
             db.add(user)
             db.flush()
-            
-            if user_type == "employee":
-                org_profile = Employee(
-                    user_id=user.id,
-                    department=None,
-                    role="employee"
-                )
-                db.add(org_profile)
-            
-            elif user_type == "individual":
-                ind_profile = IndividualUser(
-                    user_id=user.id,
-                    phone_number=None,
-                    address=None
-                )
-                db.add(ind_profile)
-            
+
+            org_profile = Employee(
+                user_id=user.id,
+                department=None,
+                role="employee"
+            )
+            db.add(org_profile)
+
             db.commit()
             db.refresh(user)
     

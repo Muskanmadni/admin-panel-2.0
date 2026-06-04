@@ -8,7 +8,7 @@ from jose import jwt
 
 from src.config.settings import settings
 from src.database.session import SessionLocal
-from src.models.models import User, IndividualUser, Tenant
+from src.models.models import User
 
 router = APIRouter()
 
@@ -44,64 +44,6 @@ def login(supabase_user_id: str):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is inactive"
             )
-        
-        access_token = create_access_token(
-            data={"sub": str(user.id), "role": user.role, "user_type": user.user_type}
-        )
-        
-        return Token(
-            access_token=access_token,
-            token_type="bearer",
-            user_id=str(user.id),
-            role=user.role,
-            user_type=user.user_type
-        )
-    finally:
-        db.close()
-
-@router.post("/register/individual", response_model=Token)
-def register_individual(
-    supabase_user_id: str,
-    email: str,
-    full_name: Optional[str] = None,
-    phone_number: Optional[str] = None,
-    address: Optional[str] = None,
-    date_of_birth: Optional[datetime] = None
-):
-    """Register a new individual user."""
-    db = SessionLocal()
-    try:
-        existing_user = db.query(User).filter(
-            (User.email == email) | (User.supabase_user_id == UUID(supabase_user_id))
-        ).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email or Supabase user ID already registered"
-            )
-        
-        # Create user
-        user = User(
-            supabase_user_id=UUID(supabase_user_id),
-            email=email,
-            full_name=full_name,
-            user_type="individual",
-            role="employee",
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        # Create individual profile
-        ind_user = IndividualUser(
-            user_id=user.id,
-            phone_number=phone_number,
-            address=address,
-            date_of_birth=date_of_birth
-        )
-        db.add(ind_user)
-        db.commit()
         
         access_token = create_access_token(
             data={"sub": str(user.id), "role": user.role, "user_type": user.user_type}

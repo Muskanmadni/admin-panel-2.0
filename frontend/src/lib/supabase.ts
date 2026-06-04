@@ -44,7 +44,7 @@ export const dbHelpers = {
         name:         profile.name || 'User',
         email:        profile.email,
         role:         profile.role || 'viewer',   // ← always viewer by default
-        account_type: profile.account_type || 'individual',
+        account_type: profile.account_type || 'employee',
         org_name:     profile.org_name    || null,
         subdomain:    profile.subdomain   || null,
         is_online:    false,

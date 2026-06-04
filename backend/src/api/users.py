@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 
 from src.api import deps
-from src.models import User, IndividualUser, Employee
+from src.models import User, Employee
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ class UnifiedRegister(BaseModel):
     user_id: UUID
     email: str
     full_name: Optional[str] = None
-    user_type: str
+    user_type: str = "employee"
     role: str = "employee"
     department: Optional[str] = None
     position: Optional[str] = None
@@ -47,7 +47,7 @@ def register_user(
     user_data: UnifiedRegister,
     db: Session = Depends(deps.get_db)
 ):
-    """Register a new user (Individual or Organizational) synced from Supabase."""
+    """Register a new employee user synced from Supabase."""
     # Check if user already exists in our Neon DB
     existing_user = db.query(User).filter(User.supabase_user_id == user_data.user_id).first()
     if existing_user:
@@ -76,25 +76,16 @@ def register_user(
         db.add(user)
         db.flush() # Get user.id
 
-        if user_data.user_type == 'employee':
-            employee_profile = Employee(
-                user_id=user.id,
-                department=user_data.department,
-                role=user_data.position or user_data.role,
-                face_photo_urls=user_data.face_photo_urls,
-            )
-            db.add(employee_profile)
-        
-        elif user_data.user_type == 'individual':
-            # 2b. Handle Individual User
-            ind_profile = IndividualUser(
-                user_id=user.id,
-                phone_number=user_data.phone_number,
-                address=user_data.address
-            )
-            db.add(ind_profile)
-        else:
-            raise HTTPException(status_code=400, detail="Invalid user_type. Use 'individual' or 'employee'.")
+        if user_data.user_type != 'employee':
+            raise HTTPException(status_code=400, detail="Invalid user_type. Only 'employee' is supported.")
+
+        employee_profile = Employee(
+            user_id=user.id,
+            department=user_data.department,
+            role=user_data.position or user_data.role,
+            face_photo_urls=user_data.face_photo_urls,
+        )
+        db.add(employee_profile)
 
         db.commit()
         db.refresh(user)
@@ -127,29 +118,21 @@ def get_current_user_info(
         "created_at": current_user.created_at,
     }
 
-    if current_user.user_type == 'individual':
-        profile = db.query(IndividualUser).filter(IndividualUser.user_id == current_user.id).first()
-        if profile:
+    emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+    if emp:
+        response_data.update({
+            "department": emp.department,
+            "position": emp.role,
+        })
+    if current_user.tenant_id:
+        from src.models import Tenant
+        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+        if tenant:
             response_data.update({
-                "phone_number": profile.phone_number,
-                "address": profile.address
+                "organization_name": tenant.name,
+                "subdomain": tenant.slug,
+                "org_code": tenant.org_code,
             })
-    elif current_user.user_type == 'employee':
-        emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
-        if emp:
-            response_data.update({
-                "department": emp.department,
-                "position": emp.role,
-            })
-        if current_user.tenant_id:
-            from src.models import Tenant
-            tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-            if tenant:
-                response_data.update({
-                    "organization_name": tenant.name,
-                    "subdomain": tenant.slug,
-                    "org_code": tenant.org_code,
-                })
 
     return response_data
 
