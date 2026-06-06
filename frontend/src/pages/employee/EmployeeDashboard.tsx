@@ -33,6 +33,14 @@ interface UserProfile {
   status: string
 }
 
+interface AssignmentTask {
+  id: string
+  title: string
+  description: string | null
+  is_completed: boolean
+  sort_order: number
+}
+
 interface Project {
   id: string
   assignmentId: string
@@ -45,6 +53,8 @@ interface Project {
   deadline: string
   priority: 'low' | 'medium' | 'high'
   team: string[]
+  tasks: AssignmentTask[]
+  tasksLoading?: boolean
 }
 
 interface AttendanceRecord {
@@ -145,6 +155,21 @@ export default function EmployeeDashboard() {
   }
 
   const [projects, setProjects] = useState<Project[]>([])
+
+  const fetchAssignmentTasks = async (assignmentId: string) => {
+    try {
+      const tasks = await api.get<AssignmentTask[]>(`/employee-projects/${assignmentId}/tasks`)
+      setProjects(prev => prev.map(p =>
+        p.assignmentId === assignmentId ? { ...p, tasks, tasksLoading: false } : p
+      ))
+      return tasks
+    } catch {
+      setProjects(prev => prev.map(p =>
+        p.assignmentId === assignmentId ? { ...p, tasksLoading: false } : p
+      ))
+      return []
+    }
+  }
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
 
@@ -196,23 +221,27 @@ export default function EmployeeDashboard() {
         // Fetch assigned projects from Neon DB
         try {
           const projectsData = await api.get<any[]>('/employee-projects/my')
-          setProjects(
-            projectsData
-              .filter((p) => p.status !== 'rejected')
-              .map((p) => ({
-                id: p.project_id,
-                assignmentId: p.id,
-                assignmentStatus: p.status,
-                progressReport: p.progress_report ?? null,
-                name: p.project_name,
-                description: p.project_description || '',
-                status: p.project_status || 'active',
-                progress: p.project_progress ?? 0,
-                deadline: p.project_end_date || '',
-                priority: p.project_priority || 'medium',
-                team: [],
-              }))
-          )
+          const mapped = projectsData
+            .filter((p) => p.status !== 'rejected')
+            .map((p) => ({
+              id: p.project_id,
+              assignmentId: p.id,
+              assignmentStatus: p.status,
+              progressReport: p.progress_report ?? null,
+              name: p.project_name,
+              description: p.project_description || '',
+              status: p.project_status || 'active',
+              progress: p.project_progress ?? 0,
+              deadline: p.project_end_date || '',
+              priority: p.project_priority || 'medium',
+              team: [],
+              tasks: [] as AssignmentTask[],
+              tasksLoading: p.status === 'accepted',
+            }))
+          setProjects(mapped)
+          mapped
+            .filter((p) => p.assignmentStatus === 'accepted')
+            .forEach((p) => { fetchAssignmentTasks(p.assignmentId) })
         } catch {
           // no projects yet
         }
@@ -332,11 +361,33 @@ export default function EmployeeDashboard() {
 
   const handleAcceptProject = async (assignmentId: string) => {
     try {
+      setProjects(prev => prev.map(p =>
+        p.assignmentId === assignmentId ? { ...p, assignmentStatus: 'accepted', tasksLoading: true } : p
+      ))
       await api.post(`/employee-projects/${assignmentId}/accept`, {})
-      setProjects(prev => prev.map(p => p.assignmentId === assignmentId ? { ...p, assignmentStatus: 'accepted' } : p))
+      await fetchAssignmentTasks(assignmentId)
     } catch (err) {
       console.error('Failed to accept project:', err)
+      setProjects(prev => prev.map(p =>
+        p.assignmentId === assignmentId ? { ...p, assignmentStatus: 'assigned', tasksLoading: false } : p
+      ))
       alert('Failed to accept project')
+    }
+  }
+
+  const handleToggleTask = async (assignmentId: string, taskId: string) => {
+    try {
+      const updated = await api.patch<AssignmentTask>(
+        `/employee-projects/${assignmentId}/tasks/${taskId}/toggle`
+      )
+      setProjects(prev => prev.map(p =>
+        p.assignmentId === assignmentId
+          ? { ...p, tasks: p.tasks.map(t => t.id === taskId ? updated : t) }
+          : p
+      ))
+    } catch (err) {
+      console.error('Failed to update task:', err)
+      alert('Failed to update task')
     }
   }
 
@@ -566,7 +617,16 @@ export default function EmployeeDashboard() {
             />
           )}
           {activeSection === 'profile' && <ProfilePage user={user} />}
-          {activeSection === 'projects' && <ProjectsPage projects={projects} onReject={handleRejectProject} onAccept={handleAcceptProject} onProgressReport={handleProgressReport} onComplete={handleCompleteProject} />}
+          {activeSection === 'projects' && (
+            <ProjectsPage
+              projects={projects}
+              onReject={handleRejectProject}
+              onAccept={handleAcceptProject}
+              onProgressReport={handleProgressReport}
+              onComplete={handleCompleteProject}
+              onToggleTask={handleToggleTask}
+            />
+          )}
           {activeSection === 'attendance' && <AttendancePage />}
           {activeSection === 'leave' && (
             <LeavePage leaveRequests={leaveRequests} onNewLeave={() => setShowLeaveModal(true)} />

@@ -3,7 +3,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import String, ForeignKey, Boolean, Text
+from sqlalchemy import String, ForeignKey, Boolean, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +35,19 @@ class EmployeeProject(Base, TimestampMixin):
     employee = relationship("User", foreign_keys=[employee_id])
     project = relationship("Project", foreign_keys=[project_id])
     assigner = relationship("User", foreign_keys=[assigned_by])
+
+
+class ProjectTask(Base, TimestampMixin):
+    __tablename__ = "project_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("project.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    project = relationship("Project", back_populates="tasks")
 
 
 class LeaveRequest(Base, TimestampMixin):

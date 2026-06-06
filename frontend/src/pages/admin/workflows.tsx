@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Grid, CheckCircle, Clock, Calendar, Search, Filter, Plus, Briefcase, User, 
-  Eye, Edit, Trash2, Flag, Building2, DollarSign, Tag, UserPlus
+  Eye, Edit, Trash2, Flag, Building2, DollarSign, Tag, UserPlus, ListTodo, Sparkles
 } from 'lucide-react'
 import BackButton from '../../components/BackButton'
 import AdminSidebar from '../../components/AdminSidebar'
@@ -14,6 +14,22 @@ import '../../styles/adminStyling/workflowsidebar.css'
 import '../../styles/adminStyling/Dashboard.css'
 
 // Types
+interface ProjectTask {
+  id: string
+  project_id: string
+  title: string
+  description: string | null
+  is_completed: boolean
+  sort_order: number
+}
+
+interface ProjectAssignment {
+  id: string
+  project_id: string
+  status: string
+  tasks?: ProjectTask[]
+}
+
 interface Project {
   id: string
   name: string
@@ -29,6 +45,7 @@ interface Project {
   tags: string[]
   client?: string
   category: string
+  taskCount?: number
 }
 
 export default function Workflows() {
@@ -37,7 +54,7 @@ export default function Workflows() {
   const [projects, setProjects] = useState<Project[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'low' | 'medium' | 'high' | 'urgent'>('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in-progress' | 'upcoming' | 'assigned'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in-progress' | 'upcoming' | 'assigned' | 'accepted'>('all')
   const [activeStatCard, setActiveStatCard] = useState<'all' | 'completed' | 'pending' | 'upcoming'>('all')
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -54,6 +71,12 @@ export default function Workflows() {
   const [editProject, setEditProject] = useState<Project | null>(null)
   const [editForm, setEditForm] = useState({ name: '', description: '', status: 'pending', priority: 'medium', assignee: '', client: '', category: '', start_date: '', end_date: '', budget: '', tags: '', progress: 0 })
   const [editSubmitting, setEditSubmitting] = useState(false)
+  const [projectTasks, setProjectTasks] = useState<Record<string, ProjectTask[]>>({})
+  const [projectAssignments, setProjectAssignments] = useState<Record<string, ProjectAssignment[]>>({})
+  const [generatingTasksFor, setGeneratingTasksFor] = useState<string | null>(null)
+  const [creatingTaskFor, setCreatingTaskFor] = useState<string | null>(null)
+  const [manualTaskForm, setManualTaskForm] = useState({ title: '', description: '' })
+  const [tasksModal, setTasksModal] = useState<Project | null>(null)
 
   // Get current user on component mount
   useEffect(() => {
@@ -81,8 +104,26 @@ export default function Workflows() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const data = await api.get<any[]>('/workflows/')
-      setProjects(data.map((p: any) => ({
+      const [projectsData, assignmentsData] = await Promise.all([
+        api.get<any[]>('/workflows/'),
+        api.get<ProjectAssignment[]>('/employee-projects/').catch(() => []),
+      ])
+
+      const assignmentsByProject = assignmentsData.reduce<Record<string, ProjectAssignment[]>>((acc, assignment) => {
+        acc[assignment.project_id] = [...(acc[assignment.project_id] || []), assignment]
+        return acc
+      }, {})
+
+      const tasksByProject = assignmentsData.reduce<Record<string, ProjectTask[]>>((acc, assignment) => {
+        if (assignment.tasks?.length && !acc[assignment.project_id]) {
+          acc[assignment.project_id] = assignment.tasks
+        }
+        return acc
+      }, {})
+
+      setProjectAssignments(assignmentsByProject)
+      setProjectTasks(prev => ({ ...tasksByProject, ...prev }))
+      setProjects(projectsData.map((p: any) => ({
         id: p.id,
         name: p.name,
         description: p.description || '',
@@ -96,11 +137,90 @@ export default function Workflows() {
         budget: p.budget,
         tags: p.tags || [],
         client: p.client,
-        category: p.category || ''
+        category: p.category || '',
+        taskCount: tasksByProject[p.id]?.length,
       })))
     }
     fetchProjects()
   }, [])
+
+  const fetchProjectTasks = async (projectId: string) => {
+    try {
+      const tasks = await api.get<ProjectTask[]>(`/workflows/${projectId}/tasks`)
+      setProjectTasks(prev => ({ ...prev, [projectId]: tasks }))
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, taskCount: tasks.length } : p))
+      return tasks
+    } catch {
+      setProjectTasks(prev => ({ ...prev, [projectId]: [] }))
+      return []
+    }
+  }
+
+  const handleGenerateTasks = async (project: Project) => {
+    setGeneratingTasksFor(project.id)
+    try {
+      const tasks = await api.post<ProjectTask[]>(`/workflows/${project.id}/generate-tasks`, {})
+      setProjectTasks(prev => ({ ...prev, [project.id]: tasks }))
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...p, taskCount: tasks.length } : p))
+      if (tasksModal?.id === project.id) {
+        setTasksModal(prev => prev ? { ...prev, taskCount: tasks.length } : prev)
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to generate AI tasks')
+    } finally {
+      setGeneratingTasksFor(null)
+    }
+  }
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tasksModal || !manualTaskForm.title.trim()) return
+
+    setCreatingTaskFor(tasksModal.id)
+    try {
+      const existingTasks = projectTasks[tasksModal.id] || []
+      const task = await api.post<ProjectTask>(`/workflows/${tasksModal.id}/tasks`, {
+        title: manualTaskForm.title.trim(),
+        description: manualTaskForm.description.trim() || null,
+        sort_order: existingTasks.length,
+      })
+      const nextTasks = [...existingTasks, task]
+      setProjectTasks(prev => ({ ...prev, [tasksModal.id]: nextTasks }))
+      setProjects(prev => prev.map(p => p.id === tasksModal.id ? { ...p, taskCount: nextTasks.length } : p))
+      setTasksModal(prev => prev ? { ...prev, taskCount: nextTasks.length } : prev)
+      setManualTaskForm({ title: '', description: '' })
+    } catch (err: any) {
+      alert(err?.message || 'Failed to add task')
+    } finally {
+      setCreatingTaskFor(null)
+    }
+  }
+
+  const getProjectAssignmentStatuses = (projectId: string) =>
+    (projectAssignments[projectId] || []).map(assignment => assignment.status)
+
+  const hasAssignedAssignment = (project: Project) => {
+    const statuses = getProjectAssignmentStatuses(project.id)
+    return statuses.includes('assigned') || (statuses.length === 0 && project.status === 'assigned')
+  }
+
+  const hasAcceptedAssignment = (project: Project) =>
+    getProjectAssignmentStatuses(project.id).includes('accepted') && project.status !== 'completed'
+
+  const openTasksModal = async (project: Project) => {
+    setTasksModal(project)
+    setManualTaskForm({ title: '', description: '' })
+    if (!projectTasks[project.id]) {
+      await fetchProjectTasks(project.id)
+    }
+  }
+
+  const openViewProject = async (project: Project) => {
+    setViewProject(project)
+    if (!projectTasks[project.id]) {
+      await fetchProjectTasks(project.id)
+    }
+  }
 
   // Calculate stats
   const stats = {
@@ -132,8 +252,15 @@ export default function Workflows() {
 
     // Filter by status
     if (statusFilter !== 'all') {
-      if (statusFilter === 'in-progress' && !['assigned', 'pending'].includes(project.status)) return false
-      if (statusFilter !== 'in-progress' && project.status !== statusFilter) return false
+      if (statusFilter === 'in-progress') {
+        if (!['assigned', 'pending'].includes(project.status)) return false
+      } else if (statusFilter === 'assigned') {
+        if (!hasAssignedAssignment(project)) return false
+      } else if (statusFilter === 'accepted') {
+        if (!hasAcceptedAssignment(project)) return false
+      } else if (project.status !== statusFilter) {
+        return false
+      }
     }
 
     return true
@@ -223,6 +350,11 @@ export default function Workflows() {
   }
 
   const openAssignModal = async (projectId: string, projectName: string) => {
+    const taskCount = projectTasks[projectId]?.length ?? (await fetchProjectTasks(projectId)).length
+    if (taskCount === 0) {
+      alert('Generate AI tasks for this project before assigning it to an employee.')
+      return
+    }
     setAssignModal({ projectId, projectName })
     setAssigningTo('')
     setAssignMsg('')
@@ -272,10 +404,20 @@ export default function Workflows() {
   const handleAssign = async () => {
     if (!assignModal || !assigningTo) return
     try {
-      await api.post('/employee-projects/assign', { employee_id: assigningTo, project_id: assignModal.projectId })
+      const assignment = await api.post<ProjectAssignment>('/employee-projects/assign', { employee_id: assigningTo, project_id: assignModal.projectId })
       const emp = employees.find(e => e.id === assigningTo)
       const empName = emp?.full_name || emp?.email || ''
-      setProjects(prev => prev.map(p => p.id === assignModal.projectId ? { ...p, assignee: empName } : p))
+      const tasks = assignment.tasks || projectTasks[assignModal.projectId] || []
+      setProjectAssignments(prev => ({
+        ...prev,
+        [assignModal.projectId]: [...(prev[assignModal.projectId] || []), assignment],
+      }))
+      setProjectTasks(prev => ({ ...prev, [assignModal.projectId]: tasks }))
+      setProjects(prev => prev.map(p => p.id === assignModal.projectId ? {
+        ...p,
+        assignee: empName,
+        taskCount: tasks.length,
+      } : p))
       setAssignMsg('✅ Project assigned successfully!')
       setTimeout(() => setAssignModal(null), 1200)
     } catch (err: any) {
@@ -399,6 +541,7 @@ export default function Workflows() {
             <option value="in-progress">In Progress</option>
             <option value="upcoming">Upcoming</option>
             <option value="assigned">Assigned</option>
+            <option value="accepted">Accepted</option>
           </select>
 
           <button className="add-project-btn" onClick={async () => {
@@ -481,12 +624,31 @@ export default function Workflows() {
                 ))}
               </div>
 
+              {(project.taskCount ?? projectTasks[project.id]?.length) ? (
+                <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ListTodo size={14} />
+                  {project.taskCount ?? projectTasks[project.id]?.length} AI tasks ready
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#94a3b8' }}>
+                  No AI tasks yet
+                </div>
+              )}
+
               {/* Action Icons */}
               <div className="action-icons">
+                <button
+                  className="action-btn"
+                  title="Generate AI Tasks"
+                  onClick={() => openTasksModal(project)}
+                  style={{ color: '#a78bfa' }}
+                >
+                  <Sparkles size={18} />
+                </button>
                 <button className="action-btn" title="Assign to Employee" onClick={() => openAssignModal(project.id, project.name)}>
                   <UserPlus size={18} />
                 </button>
-                <button className="action-btn" onClick={() => setViewProject(project)}>
+                <button className="action-btn" onClick={() => openViewProject(project)}>
                   <Eye size={18} />
                 </button>
                 <button className="action-btn" onClick={() => openEditModal(project)}>
@@ -632,6 +794,87 @@ export default function Workflows() {
       </div>
     )}
 
+    {tasksModal && (
+      <div className="modal-overlay" onClick={() => setTasksModal(null)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+          <div className="modal-header">
+            <h2>AI Tasks — {tasksModal.name}</h2>
+            <button className="modal-close" onClick={() => setTasksModal(null)}>×</button>
+          </div>
+          <div style={{ padding: '1.5rem' }}>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: 0 }}>
+              Generate or add tasks before assigning this project to an employee.
+            </p>
+
+            {(projectTasks[tasksModal.id] || []).length === 0 ? (
+              <button
+                className="btn-submit"
+                onClick={() => handleGenerateTasks(tasksModal)}
+                disabled={generatingTasksFor === tasksModal.id}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Sparkles size={16} />
+                {generatingTasksFor === tasksModal.id ? 'Generating tasks...' : 'Generate AI Tasks'}
+              </button>
+            ) : null}
+
+            <form onSubmit={handleCreateTask} style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                required
+                value={manualTaskForm.title}
+                onChange={e => setManualTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Task title"
+                style={{ width: '100%', padding: '0.65rem', borderRadius: 8, background: '#1e293b', color: '#f1f5f9', border: '1px solid #334155' }}
+              />
+              <textarea
+                value={manualTaskForm.description}
+                onChange={e => setManualTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Task description"
+                rows={3}
+                style={{ width: '100%', padding: '0.65rem', borderRadius: 8, background: '#1e293b', color: '#f1f5f9', border: '1px solid #334155', resize: 'vertical' }}
+              />
+              <button
+                type="submit"
+                className="btn-submit"
+                disabled={creatingTaskFor === tasksModal.id || !manualTaskForm.title.trim()}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Plus size={16} />
+                {creatingTaskFor === tasksModal.id ? 'Adding task...' : 'Add Manual Task'}
+              </button>
+            </form>
+
+            {(projectTasks[tasksModal.id] || []).length === 0 ? (
+              <p style={{ color: '#94a3b8', margin: '1rem 0 0', fontSize: '0.85rem' }}>
+                No tasks added yet.
+              </p>
+            ) : (
+                <ul style={{ listStyle: 'none', margin: '1rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(projectTasks[tasksModal.id] || []).map((task, idx) => (
+                    <li
+                      key={task.id}
+                      style={{
+                        padding: '0.75rem', background: '#0f172a', borderRadius: 8,
+                        border: '1px solid #334155',
+                      }}
+                    >
+                      <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.9rem' }}>
+                        {idx + 1}. {task.title}
+                      </div>
+                      {task.description && (
+                        <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 4 }}>
+                          {task.description}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
     {viewProject && (
       <div className="modal-overlay" onClick={() => setViewProject(null)}>
         <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
@@ -668,6 +911,50 @@ export default function Workflows() {
                 </div>
               </div>
             )}
+
+            <div>
+              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>GENERATED TASKS</span>
+              {(projectTasks[viewProject.id] || []).length === 0 ? (
+                <p style={{ color: '#94a3b8', margin: '6px 0 0', fontSize: '0.85rem' }}>
+                  No generated tasks yet.
+                </p>
+              ) : (
+                <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(projectTasks[viewProject.id] || []).map((task, idx) => (
+                    <li
+                      key={task.id}
+                      style={{
+                        padding: '0.75rem',
+                        background: '#0f172a',
+                        borderRadius: 8,
+                        border: `1px solid ${task.is_completed ? '#10b98166' : '#334155'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <CheckCircle
+                          size={16}
+                          color={task.is_completed ? '#10b981' : '#64748b'}
+                          style={{ marginTop: 2, flexShrink: 0 }}
+                        />
+                        <div>
+                          <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.9rem' }}>
+                            {idx + 1}. {task.title}
+                          </div>
+                          {task.description && (
+                            <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 4 }}>
+                              {task.description}
+                            </div>
+                          )}
+                          <div style={{ color: task.is_completed ? '#34d399' : '#94a3b8', fontSize: '0.72rem', marginTop: 6 }}>
+                            {task.is_completed ? 'Completed by employee' : 'Pending'}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       </div>

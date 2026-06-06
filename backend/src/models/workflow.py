@@ -30,3 +30,4 @@ class Project(Base, TimestampMixin):
 
     tenant = relationship("Tenant")
     creator = relationship("User", foreign_keys=[created_by])
+    tasks = relationship("ProjectTask", back_populates="project", cascade="all, delete-orphan")

@@ -1,5 +1,13 @@
 import React, { useState } from 'react'
-import { Calendar, Users, CheckCircle, XCircle, TrendingUp, CheckCircle2 } from 'lucide-react'
+import { Calendar, Users, CheckCircle, XCircle, TrendingUp, CheckCircle2, ListTodo } from 'lucide-react'
+
+interface AssignmentTask {
+  id: string
+  title: string
+  description: string | null
+  is_completed: boolean
+  sort_order: number
+}
 
 interface ProjectsPageProps {
   projects: any[]
@@ -7,15 +15,28 @@ interface ProjectsPageProps {
   onReject: (assignmentId: string) => void
   onProgressReport: (assignmentId: string, report: string) => void
   onComplete: (assignmentId: string) => void
+  onToggleTask: (assignmentId: string, taskId: string) => void
 }
 
-export default function ProjectsPage({ projects, onAccept, onReject, onProgressReport, onComplete }: ProjectsPageProps) {
+export default function ProjectsPage({
+  projects,
+  onAccept,
+  onReject,
+  onProgressReport,
+  onComplete,
+  onToggleTask,
+}: ProjectsPageProps) {
   const [filter, setFilter] = useState('all')
   const [reportDraft, setReportDraft] = useState<Record<string, string>>({})
   const [expandedReport, setExpandedReport] = useState<string | null>(null)
 
   const visible = projects.filter((p) => p.assignmentStatus !== 'rejected')
   const filtered = visible.filter((p) => filter === 'all' || p.status === filter)
+
+  const allTasksComplete = (project: any) => {
+    const tasks: AssignmentTask[] = project.tasks || []
+    return tasks.length > 0 && tasks.every((t) => t.is_completed)
+  }
 
   return (
     <div className="emp-projects">
@@ -38,7 +59,12 @@ export default function ProjectsPage({ projects, onAccept, onReject, onProgressR
         <p style={{ color: '#94a3b8', padding: '1rem 0' }}>No projects found.</p>
       ) : (
         <div className="emp-projects-grid">
-          {filtered.map((project: any) => (
+          {filtered.map((project: any) => {
+            const tasks: AssignmentTask[] = project.tasks || []
+            const completedCount = tasks.filter((t) => t.is_completed).length
+            const canComplete = allTasksComplete(project)
+
+            return (
             <div key={project.id} className={`emp-project-card emp-project-${project.status}`}>
               <div className="emp-project-header">
                 <h3>{project.name}</h3>
@@ -96,20 +122,91 @@ export default function ProjectsPage({ projects, onAccept, onReject, onProgressR
 
               {project.status !== 'completed' && project.assignmentStatus === 'accepted' && (
                 <div style={{ marginTop: '0.75rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    marginBottom: '0.5rem', color: '#93c5fd', fontSize: '0.8rem', fontWeight: 600,
+                  }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ListTodo size={14} />
+                      AI Tasks
+                    </span>
+                    {tasks.length > 0 && (
+                      <span style={{ color: '#94a3b8', fontWeight: 500 }}>
+                        {completedCount}/{tasks.length} done
+                      </span>
+                    )}
+                  </div>
+
+                  {project.tasksLoading ? (
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0.5rem 0' }}>
+                      Loading tasks...
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.5rem' }}>
+                      No tasks available yet. Your admin will prepare tasks for this project.
+                    </p>
+                  ) : (
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {tasks.map((task) => (
+                        <li
+                          key={task.id}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 8,
+                            padding: '0.5rem', background: '#0f172a', borderRadius: 6,
+                            border: `1px solid ${task.is_completed ? '#10b98144' : '#334155'}`,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={task.is_completed}
+                            onChange={() => onToggleTask(project.assignmentId, task.id)}
+                            style={{ marginTop: 2, accentColor: '#10b981', cursor: 'pointer' }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{
+                              fontSize: '0.8rem',
+                              color: task.is_completed ? '#64748b' : '#e2e8f0',
+                              textDecoration: task.is_completed ? 'line-through' : 'none',
+                              fontWeight: 500,
+                            }}>
+                              {task.title}
+                            </div>
+                            {task.description && (
+                              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2 }}>
+                                {task.description}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {project.status !== 'completed' && project.assignmentStatus === 'accepted' && (
+                <div style={{ marginTop: '0.75rem' }}>
                   <button
                     onClick={() => {
                       if (!confirm(`Mark "${project.name}" as complete?`)) return
                       onComplete(project.assignmentId)
                     }}
+                    disabled={!canComplete}
+                    title={canComplete ? 'Mark project as complete' : 'Complete all AI tasks first'}
                     style={{
                       width: '100%', padding: '0.4rem 0',
-                      background: '#a855f722', color: '#d8b4fe', border: '1px solid #a855f744',
-                      borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                      background: canComplete ? '#a855f722' : '#1e293b',
+                      color: canComplete ? '#d8b4fe' : '#64748b',
+                      border: `1px solid ${canComplete ? '#a855f744' : '#334155'}`,
+                      borderRadius: 6,
+                      cursor: canComplete ? 'pointer' : 'not-allowed',
+                      fontSize: '0.8rem', fontWeight: 600,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      opacity: canComplete ? 1 : 0.7,
                     }}
                   >
                     <CheckCircle2 size={14} />
-                    Mark Project Complete
+                    {canComplete ? 'Mark Project Complete' : 'Complete All Tasks First'}
                   </button>
                 </div>
               )}
@@ -166,7 +263,8 @@ export default function ProjectsPage({ projects, onAccept, onReject, onProgressR
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

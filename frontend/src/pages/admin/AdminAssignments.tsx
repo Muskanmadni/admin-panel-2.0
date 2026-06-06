@@ -62,7 +62,12 @@ export default function AdminAssignments() {
   }
 
   const filtered = assignments.filter(a => {
-    if (statusFilter !== 'all' && assignmentStatus(a) !== statusFilter) return false
+    if (statusFilter === 'completed' && assignmentStatus(a) !== 'completed') return false
+    if (
+      statusFilter !== 'all' &&
+      statusFilter !== 'completed' &&
+      a.status !== statusFilter
+    ) return false
     if (search) {
       const q = search.toLowerCase()
       return (
@@ -77,9 +82,9 @@ export default function AdminAssignments() {
 
   const counts = {
     all: assignments.length,
-    assigned: assignments.filter(a => assignmentStatus(a) === 'assigned').length,
-    accepted: assignments.filter(a => assignmentStatus(a) === 'accepted').length,
-    rejected: assignments.filter(a => assignmentStatus(a) === 'rejected').length,
+    assigned: assignments.filter(a => a.status === 'assigned').length,
+    accepted: assignments.filter(a => a.status === 'accepted').length,
+    rejected: assignments.filter(a => a.status === 'rejected').length,
     completed: assignments.filter(a => assignmentStatus(a) === 'completed').length,
   }
 
@@ -208,6 +213,5 @@ export default function AdminAssignments() {
     </div>
   )
 }
-
 
 

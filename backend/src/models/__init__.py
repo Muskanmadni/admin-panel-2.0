@@ -1,5 +1,5 @@
 from src.database.base_class import Base
-from .employee import Employee, EmployeeProject, LeaveRequest, Notification, Attendance, ActivityLog
+from .employee import Employee, EmployeeProject, ProjectTask, LeaveRequest, Notification, Attendance, ActivityLog
 from .models import (
     Tenant,
     User,

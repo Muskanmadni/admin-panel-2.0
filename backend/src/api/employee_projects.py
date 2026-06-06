@@ -2,14 +2,16 @@ from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 from src.api import deps
 from src.api.notifications import create_notification, notify_admins
-from src.models import User, EmployeeProject
+from src.models import User, EmployeeProject, ProjectTask
 from src.models.workflow import Project
 from src.models.employee import Employee
+from src.schemas.assignment_task import ProjectTaskOut
+from src.services.project_task import get_project_tasks, project_has_tasks
 
 router = APIRouter()
 
@@ -38,6 +40,7 @@ class EmployeeProjectOut(BaseModel):
     employee_name: str | None = None
     employee_email: str | None = None
     employee_role: str | None = None
+    tasks: List[ProjectTaskOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,6 +74,12 @@ def assign_project(
     project = db.query(Project).filter(Project.id == data.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    if not project_has_tasks(db, data.project_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Generate AI tasks for this project before assigning it to an employee",
+        )
 
     ep = EmployeeProject(
         employee_id=data.employee_id,
@@ -137,29 +146,77 @@ def reject_project(
     return {"message": "Project rejected"}
 
 
+def _get_assignment_for_employee(
+    db: Session, assignment_id: UUID, current_user: User
+) -> EmployeeProject:
+    ep = db.query(EmployeeProject).filter(EmployeeProject.id == assignment_id).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if ep.employee_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return ep
+
+
 @router.post("/{assignment_id}/accept")
 def accept_project(
     assignment_id: UUID,
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    ep = db.query(EmployeeProject).filter(EmployeeProject.id == assignment_id).first()
-    if not ep:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    if ep.employee_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    ep = _get_assignment_for_employee(db, assignment_id, current_user)
+    if ep.status == "rejected":
+        raise HTTPException(status_code=400, detail="Cannot accept a rejected assignment")
+    if ep.status == "completed":
+        raise HTTPException(status_code=400, detail="Assignment is already completed")
+
     ep.status = "accepted"
     project = db.query(Project).filter(Project.id == ep.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     emp_name = current_user.full_name or current_user.email
-    project_name = project.name if project else "a project"
     notify_admins(
         db,
-        message=f'{emp_name} accepted the project assignment "{project_name}".',
+        message=f'{emp_name} accepted the project assignment "{project.name}".',
         notification_type="project_accept",
         tenant_id=current_user.tenant_id,
     )
     db.commit()
     return {"message": "Project accepted"}
+
+
+@router.get("/{assignment_id}/tasks", response_model=List[ProjectTaskOut])
+def list_assignment_tasks(
+    assignment_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    ep = _get_assignment_for_employee(db, assignment_id, current_user)
+    return get_project_tasks(db, ep.project_id)
+
+
+@router.patch("/{assignment_id}/tasks/{task_id}/toggle", response_model=ProjectTaskOut)
+def toggle_assignment_task(
+    assignment_id: UUID,
+    task_id: UUID,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    ep = _get_assignment_for_employee(db, assignment_id, current_user)
+    if ep.status != "accepted":
+        raise HTTPException(status_code=400, detail="Can only update tasks for accepted assignments")
+
+    task = db.query(ProjectTask).filter(
+        ProjectTask.id == task_id,
+        ProjectTask.project_id == ep.project_id,
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task.is_completed = not task.is_completed
+    db.commit()
+    db.refresh(task)
+    return task
 
 
 class ProgressReportIn(BaseModel):
@@ -208,6 +265,12 @@ def complete_project(
         raise HTTPException(status_code=400, detail="Cannot complete a rejected assignment")
     if ep.status != "accepted":
         raise HTTPException(status_code=400, detail="Accept the project assignment before marking it complete")
+
+    tasks = get_project_tasks(db, ep.project_id)
+    if not tasks:
+        raise HTTPException(status_code=400, detail="No tasks found for this project.")
+    if not all(t.is_completed for t in tasks):
+        raise HTTPException(status_code=400, detail="Complete all tasks before marking the project as complete")
 
     project = db.query(Project).filter(Project.id == ep.project_id).first()
     if not project:
@@ -343,6 +406,7 @@ def unassign_project(
 
 def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User], db: Session = None) -> dict:
     emp_profile = db.query(Employee).filter(Employee.user_id == employee.id).first() if (db and employee) else None
+    tasks = get_project_tasks(db, project.id) if db else []
     return {
         "id": ep.id,
         "employee_id": ep.employee_id,
@@ -360,4 +424,5 @@ def _to_out(ep: EmployeeProject, project: Project, employee: Optional[User], db:
         "employee_name": employee.full_name if employee else None,
         "employee_email": employee.email if employee else None,
         "employee_role": (emp_profile.role if emp_profile and emp_profile.role else None) or (employee.role if employee else None),
+        "tasks": tasks,
     }

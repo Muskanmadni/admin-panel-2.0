@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # OPENAI
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o"
+
+    # GEMINI
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [

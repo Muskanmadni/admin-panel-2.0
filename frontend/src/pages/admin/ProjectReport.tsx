@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FileText, Search, User, Briefcase, TrendingUp, Inbox, Download } from 'lucide-react'
+import { FileText, Search, User, Briefcase, TrendingUp, Inbox, Download, CheckCircle2, ListChecks, Clock } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { api } from '../../lib/api'
 import AdminSidebar from '../../components/AdminSidebar'
@@ -21,9 +21,18 @@ interface AssignmentReport {
   employee_name: string | null
   employee_email: string | null
   employee_role: string | null
+  tasks?: AssignmentTask[]
 }
 
-type ReportFilter = 'all' | 'submitted' | 'pending'
+interface AssignmentTask {
+  id: string
+  title: string
+  description: string | null
+  is_completed: boolean
+  sort_order: number
+}
+
+type ReportFilter = 'all' | 'assigned' | 'accepted' | 'submitted' | 'pending'
 
 const priorityColor: Record<string, string> = {
   urgent: '#ef4444',
@@ -59,26 +68,34 @@ export default function ProjectReport() {
   }, [])
 
   const withReport = assignments.filter(a => (a.progress_report || '').trim().length > 0)
+  const assignedProjects = assignments.filter(a => a.status === 'assigned')
+  const acceptedProjects = assignments.filter(
+    a => a.status === 'accepted' && a.project_status !== 'completed'
+  )
   const pendingReport = assignments.filter(
     a =>
       !(a.progress_report || '').trim() &&
-      assignmentStatus(a) === 'accepted' &&
+      a.status === 'accepted' &&
       a.project_status !== 'completed'
   )
 
   const filtered = assignments.filter(a => {
+    if (filter === 'assigned' && a.status !== 'assigned') return false
+    if (filter === 'accepted' && (a.status !== 'accepted' || a.project_status === 'completed')) return false
     if (filter === 'submitted' && !(a.progress_report || '').trim()) return false
     if (filter === 'pending') {
       if ((a.progress_report || '').trim()) return false
-      if (assignmentStatus(a) !== 'accepted' || a.project_status === 'completed') return false
+      if (a.status !== 'accepted' || a.project_status === 'completed') return false
     }
     if (search) {
       const q = search.toLowerCase()
+      const tasks = a.tasks || []
       return (
         a.project_name.toLowerCase().includes(q) ||
         (a.employee_name || '').toLowerCase().includes(q) ||
         (a.employee_email || '').toLowerCase().includes(q) ||
-        (a.progress_report || '').toLowerCase().includes(q)
+        (a.progress_report || '').toLowerCase().includes(q) ||
+        tasks.some(t => t.title.toLowerCase().includes(q))
       )
     }
     return true
@@ -92,17 +109,24 @@ export default function ProjectReport() {
   const handleDownloadExcel = () => {
     if (displayList.length === 0) return
 
-    const rows = displayList.map(a => ({
-      Project: a.project_name,
-      Employee: a.employee_name || '',
-      Email: a.employee_email || '',
-      Role: a.employee_role || '',
-      Priority: a.project_priority,
-      Status: assignmentStatus(a),
-      'Due Date': a.project_end_date || '',
-      'Progress Report': a.progress_report?.trim() || '',
-      'Assigned On': new Date(a.created_at).toLocaleDateString(),
-    }))
+    const rows = displayList.map(a => {
+      const tasks = a.tasks || []
+      const completedTasks = tasks.filter(t => t.is_completed)
+
+      return {
+        Project: a.project_name,
+        Employee: a.employee_name || '',
+        Email: a.employee_email || '',
+        Role: a.employee_role || '',
+        Priority: a.project_priority,
+        Status: assignmentStatus(a),
+        'Due Date': a.project_end_date || '',
+        'Tasks Completed': `${completedTasks.length}/${tasks.length}`,
+        'Completed Task Titles': completedTasks.map(t => t.title).join(', '),
+        'Progress Report': a.progress_report?.trim() || '',
+        'Assigned On': new Date(a.created_at).toLocaleDateString(),
+      }
+    })
 
     const sheet = XLSX.utils.json_to_sheet(rows)
     const workbook = XLSX.utils.book_new()
@@ -130,6 +154,22 @@ export default function ProjectReport() {
               onClick={() => setFilter('all')}
             >
               All ({assignments.length})
+            </button>
+            <button
+              type="button"
+              className={`project-report-stat${filter === 'assigned' ? ' active' : ''}`}
+              onClick={() => setFilter('assigned')}
+            >
+              <Clock size={14} />
+              Assigned ({assignedProjects.length})
+            </button>
+            <button
+              type="button"
+              className={`project-report-stat${filter === 'accepted' ? ' active' : ''}`}
+              onClick={() => setFilter('accepted')}
+            >
+              <CheckCircle2 size={14} />
+              Accepted ({acceptedProjects.length})
             </button>
             <button
               type="button"
@@ -178,6 +218,10 @@ export default function ProjectReport() {
               <p>
                 {filter === 'submitted'
                   ? 'No progress reports have been shared yet.'
+                  : filter === 'assigned'
+                    ? 'No assigned projects found.'
+                    : filter === 'accepted'
+                      ? 'No accepted projects with tasks found.'
                   : filter === 'pending'
                     ? 'No accepted projects are waiting for a report.'
                     : 'No matching assignments found.'}
@@ -189,6 +233,8 @@ export default function ProjectReport() {
                 const status = assignmentStatus(a)
                 const hasReport = !!(a.progress_report || '').trim()
                 const expanded = expandedId === a.id
+                const tasks = a.tasks || []
+                const completedTasks = tasks.filter(t => t.is_completed)
 
                 return (
                   <article key={a.id} className={`project-report-card${hasReport ? ' has-report' : ''}`}>
@@ -255,6 +301,31 @@ export default function ProjectReport() {
                         <p className="project-report-missing">
                           No progress report submitted yet.
                         </p>
+                      )}
+                    </div>
+
+                    <div className="project-report-tasks">
+                      <div className="project-report-tasks-header">
+                        <span>
+                          <ListChecks size={15} />
+                          Employee completed tasks
+                        </span>
+                        <strong>{completedTasks.length}/{tasks.length}</strong>
+                      </div>
+
+                      {tasks.length === 0 ? (
+                        <p className="project-report-task-empty">No tasks available for this project.</p>
+                      ) : completedTasks.length === 0 ? (
+                        <p className="project-report-task-empty">No tasks completed yet.</p>
+                      ) : (
+                        <ul className="project-report-task-list">
+                          {completedTasks.map(task => (
+                            <li key={task.id}>
+                              <CheckCircle2 size={15} />
+                              <span>{task.title}</span>
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
 

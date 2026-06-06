@@ -270,6 +270,67 @@
   font-style: italic;
 }
 
+.project-report-tasks {
+  padding: 0.75rem;
+  background: rgba(15, 5, 30, 0.45);
+  border: 1px solid rgba(16, 185, 129, 0.14);
+  border-radius: 8px;
+}
+
+.project-report-tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+  color: #d1fae5;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.project-report-tasks-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.project-report-tasks-header strong {
+  color: #6ee7b7;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.project-report-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.project-report-task-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.project-report-task-list svg {
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.project-report-task-empty {
+  margin: 0;
+  color: #7c6b8a;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
 .project-report-card-footer {
   font-size: 0.72rem;
   color: #6b5b7a;
