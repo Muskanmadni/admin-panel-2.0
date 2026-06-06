@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../styles/employeeStyling/TimeTracking.css";
 import { api } from "../../lib/api";
 import { getPakistanToday } from "../../lib/pakistanTime";
+import { supabase, dbHelpers } from "../../lib/supabase";
+import {
+  useTimeTrackingInactivity,
+  showDesktopNotification,
+  requestNotificationPermission,
+  TIME_TRACKING_WARNING_MINUTES,
+} from "../../hooks/useTimeTrackingInactivity";
 import {
   loadActiveTimer,
   saveActiveTimer,
@@ -256,9 +264,17 @@ interface TimeTrackerProps {
   assignments?: TimeTrackingAssignment[];
   /** When false, dashboard is still loading project assignments */
   assignmentsReady?: boolean;
+  /** Enable 10-min cursor inactivity session (time tracking view or active timer) */
+  inactivitySessionEnabled?: boolean;
 }
 
-export default function TimeTracker({ onTimerUpdate, assignments, assignmentsReady = true }: TimeTrackerProps) {
+export default function TimeTracker({
+  onTimerUpdate,
+  assignments,
+  assignmentsReady = true,
+  inactivitySessionEnabled = false,
+}: TimeTrackerProps) {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -274,6 +290,16 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
   const startRef = useRef<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRestoredRef = useRef(false);
+  const isRunningRef = useRef(false);
+  const inactivityLogoutRef = useRef(false);
+
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   const applyWorkProjects = useCallback((list: Project[]) => {
     setWorkProjects(list);
@@ -404,6 +430,89 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
     }
   };
 
+  const saveEntry = useCallback(async (entry: Omit<TimeEntry, "id">) => {
+    try {
+      const saved = await api.post<any>('/time-tracking/', {
+        project: entry.project,
+        task: entry.task,
+        tag: entry.tag,
+        start_time: entry.start.toISOString(),
+        end_time: entry.end.toISOString(),
+        duration: entry.duration,
+      });
+      setEntries(prev => [{ ...entry, id: saved.id }, ...prev]);
+      addToast(`Logged ${fmtDuration(entry.duration)} to ${entry.project}`, "success");
+    } catch {
+      addToast("Failed to save entry", "error");
+    }
+  }, [addToast]);
+
+  const stopTimerAndSave = useCallback(async (): Promise<boolean> => {
+    if (!isRunningRef.current || !startRef.current) return false;
+
+    setIsRunning(false);
+    clearActiveTimer();
+
+    const duration = elapsedFromStored(startRef.current.toISOString());
+    if (duration < 5) {
+      addToast("Entry too short — discarded.", "error");
+      setElapsed(0);
+      startRef.current = null;
+      return false;
+    }
+
+    const start = startRef.current;
+    const end = new Date();
+    const entry: Omit<TimeEntry, "id"> = {
+      project: activeProject,
+      task: activeTask || "Untitled task",
+      start,
+      end,
+      duration,
+      tag: activeTag,
+    };
+    await syncAttendanceCheckOut();
+    await saveEntry(entry);
+    setElapsed(0);
+    startRef.current = null;
+    return true;
+  }, [activeProject, activeTask, activeTag, addToast, saveEntry]);
+
+  const handleInactivityLogout = useCallback(async () => {
+    if (inactivityLogoutRef.current) return;
+    inactivityLogoutRef.current = true;
+
+    if (isRunningRef.current) {
+      await stopTimerAndSave();
+      addToast("Timer stopped and saved due to inactivity.", "info");
+    }
+
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.id) {
+        await dbHelpers.updatePresence(data.user.id, false);
+      }
+    } catch {
+      /* best-effort */
+    }
+
+    await supabase.auth.signOut();
+    sessionStorage.setItem("logout_reason", "time_tracking_inactivity");
+    navigate("/login", { replace: true });
+  }, [stopTimerAndSave, addToast, navigate]);
+
+  const handleInactivityWarning = useCallback(() => {
+    const msg = `No cursor activity detected. You will be logged out in ${TIME_TRACKING_WARNING_MINUTES} minutes unless you move your mouse.`;
+    addToast(msg, "error");
+    showDesktopNotification("Time Tracking — session ending soon", msg);
+  }, [addToast]);
+
+  useTimeTrackingInactivity({
+    enabled: inactivitySessionEnabled,
+    onWarning: handleInactivityWarning,
+    onTimeout: handleInactivityLogout,
+  });
+
   const handleStartStop = async () => {
     if (!isRunning) {
       if (!activeProject) {
@@ -423,48 +532,7 @@ export default function TimeTracker({ onTimerUpdate, assignments, assignmentsRea
       await syncAttendanceCheckIn();
       addToast("Timer started — check-in recorded (PKT)", "info");
     } else {
-      setIsRunning(false);
-      clearActiveTimer();
-      const duration = startRef.current
-        ? elapsedFromStored(startRef.current.toISOString())
-        : elapsed;
-      if (duration < 5) {
-        addToast("Entry too short — discarded.", "error");
-        setElapsed(0);
-        startRef.current = null;
-        return;
-      }
-      const start = startRef.current!;
-      const end = new Date();
-      const entry: Omit<TimeEntry, "id"> = {
-        project: activeProject,
-        task: activeTask || "Untitled task",
-        start,
-        end,
-        duration,
-        tag: activeTag,
-      };
-      await syncAttendanceCheckOut();
-      saveEntry(entry);
-      setElapsed(0);
-      startRef.current = null;
-    }
-  };
-
-  const saveEntry = async (entry: Omit<TimeEntry, "id">) => {
-    try {
-      const saved = await api.post<any>('/time-tracking/', {
-        project: entry.project,
-        task: entry.task,
-        tag: entry.tag,
-        start_time: entry.start.toISOString(),
-        end_time: entry.end.toISOString(),
-        duration: entry.duration,
-      });
-      setEntries(prev => [{ ...entry, id: saved.id }, ...prev]);
-      addToast(`Logged ${fmtDuration(entry.duration)} to ${entry.project}`, "success");
-    } catch {
-      addToast("Failed to save entry", "error");
+      await stopTimerAndSave();
     }
   };
 

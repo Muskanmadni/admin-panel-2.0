@@ -38,7 +38,12 @@ function AppRoutes({
   userId: string | null
   userRole: string | null
 }) {
-  useInactivity(isAuthenticated ? userId : null)
+  const isAdminSession =
+    isAuthenticated &&
+    userId !== null &&
+    ADMIN_ROLES.includes(userRole ?? '')
+
+  useInactivity(isAdminSession ? userId : null)
 
   const homePath = isAuthenticated
     ? ADMIN_ROLES.includes(userRole ?? '') ? '/dashboard' : '/employee-dashboard'

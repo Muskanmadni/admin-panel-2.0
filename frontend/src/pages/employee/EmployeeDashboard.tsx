@@ -546,6 +546,7 @@ export default function EmployeeDashboard() {
           >
             <TimeTracking
               onTimerUpdate={handleTimerUpdate}
+              inactivitySessionEnabled={activeSection === 'time-tracking' || timerRunning}
               assignmentsReady={!loading}
               assignments={projects.map((p) => ({
                 assignmentId: p.assignmentId,

@@ -27,8 +27,11 @@ export default function Login({ setIsAuthenticated }: LoginProps) {
   useEffect(() => {
     // Check if redirected here due to inactivity timeout
     const reason = sessionStorage.getItem('logout_reason')
-    if (reason === 'inactivity') {
-      setSessionExpiredMsg('You were logged out due to 20 minutes of inactivity.')
+    if (reason === 'time_tracking_inactivity') {
+      setSessionExpiredMsg('You were logged out after 10 minutes without cursor activity on Time Tracking. Any running timer was saved.')
+      sessionStorage.removeItem('logout_reason')
+    } else if (reason === 'admin_inactivity' || reason === 'inactivity') {
+      setSessionExpiredMsg('You were logged out after 20 minutes of inactivity on the admin dashboard.')
       sessionStorage.removeItem('logout_reason')
     }
 
