@@ -122,6 +122,17 @@ class Announcement(Base, TimestampMixin):
     author = relationship("User", foreign_keys=[created_by])
 
 
+class SignupPolicy(Base, TimestampMixin):
+    __tablename__ = "signup_policies"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    file_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+
 class ActivityLog(Base, TimestampMixin):
     __tablename__ = "activity_logs"
 

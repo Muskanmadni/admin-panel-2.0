@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Mail, Lock, Eye, EyeOff, User, Building2,
@@ -7,7 +7,13 @@ import {
 
 import AuthLayout from '../components/AuthLayout'
 import FaceCapture, { type FacePhotoUrls } from '../components/FaceCapture'
-import PolicyConsent, { allPoliciesAccepted } from '../components/PolicyConsent'
+import PolicyConsent from '../components/PolicyConsent'
+import {
+  allPoliciesAccepted,
+  DEFAULT_POLICY_DOCUMENTS,
+  fetchPolicyDocuments,
+  type PolicyDocument,
+} from '../lib/policyDocuments'
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
 import '../styles/Signup.css'
@@ -33,12 +39,17 @@ export default function Signup(_props: SignupProps) {
   const [dbError, setDbError]           = useState<string | null>(null)
   const [showFaceCapture, setShowFaceCapture] = useState(false)
   const [pendingAuthData, setPendingAuthData] = useState<{ userId: string; email: string; name: string } | null>(null)
+  const [policyDocuments, setPolicyDocuments] = useState<PolicyDocument[]>([])
   const [acceptedPolicies, setAcceptedPolicies] = useState<Record<string, boolean>>({
     terms: false,
     policies: false,
   })
 
-  const policiesAccepted = allPoliciesAccepted(acceptedPolicies)
+  useEffect(() => {
+    fetchPolicyDocuments().then(setPolicyDocuments)
+  }, [])
+
+  const policiesAccepted = allPoliciesAccepted(acceptedPolicies, policyDocuments)
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -48,8 +59,12 @@ export default function Signup(_props: SignupProps) {
     if (!empForm.password)       e.password = 'Password is required'
     else if (empForm.password.length < 8) e.password = 'Min 8 characters'
     if (empForm.confirm !== empForm.password) e.confirm = 'Passwords do not match'
-    if (!acceptedPolicies.terms) e.terms = 'You must accept the Terms & Conditions'
-    if (!acceptedPolicies.policies) e.policies = 'You must accept the Office Policies'
+    const docs = policyDocuments.length ? policyDocuments : DEFAULT_POLICY_DOCUMENTS
+    docs.forEach(doc => {
+      if (!acceptedPolicies[doc.id]) {
+        e[doc.id] = `You must accept the ${doc.label}`
+      }
+    })
     return e
   }
 

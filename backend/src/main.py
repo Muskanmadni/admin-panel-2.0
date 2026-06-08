@@ -26,6 +26,7 @@ from src.api import (
     time_tracking,
     announcements,
     notifications,
+    policies,
 )
 
 # Setup logging
@@ -160,6 +161,11 @@ def create_application() -> FastAPI:
         notifications.router,
         prefix=f"{api_prefix}/notifications",
         tags=["Notifications"]
+    )
+    application.include_router(
+        policies.router,
+        prefix=f"{api_prefix}/policies",
+        tags=["Policies"]
     )
 
     @application.get("/", tags=["System"])

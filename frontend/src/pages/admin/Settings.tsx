@@ -4,8 +4,9 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Settings as SettingsIcon, Palette, Building2, Image,
-  Save, RotateCcw, LogOut, Bell, User, Check
+  Save, RotateCcw, LogOut, Bell, User, Check, FileText
 } from 'lucide-react'
+import PolicySettingsSection from '../../components/PolicySettingsSection'
 import { supabase } from '../../lib/supabase'
 import { useSettings, OrgSettings } from '../../lib/SettingsContext'
 import { getMyRole } from './Dashboard'
@@ -29,7 +30,7 @@ export default function Settings() {
   const { settings, updateSettings, saveSettings, resetSettings } = useSettings()
 
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState<'org' | 'theme' | 'appearance' | 'account'>('org')
+  const [activeTab, setActiveTab] = useState<'org' | 'theme' | 'appearance' | 'policies' | 'account'>('org')
   const [logoPreview, setLogoPreview] = useState<string>(settings.logoUrl || '/logo.png')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
@@ -112,6 +113,7 @@ export default function Settings() {
     { id: 'org',        label: 'Organization', icon: <Building2 size={16} /> },
     { id: 'theme',      label: 'Theme',        icon: <Palette size={16} /> },
     { id: 'appearance', label: 'Appearance',   icon: <Image size={16} /> },
+    { id: 'policies',   label: 'Policies',     icon: <FileText size={16} /> },
     { id: 'account',    label: 'Account',      icon: <User size={16} /> },
   ] as const
 
@@ -288,6 +290,9 @@ export default function Settings() {
               </div>
             </div>
           )}
+
+          {/* ── Policies Tab ── */}
+          {activeTab === 'policies' && <PolicySettingsSection />}
 
           {/* ── Account Tab ── */}
           {activeTab === 'account' && (

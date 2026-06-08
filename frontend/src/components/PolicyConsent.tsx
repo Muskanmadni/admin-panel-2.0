@@ -1,28 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { ExternalLink, FileText, X } from 'lucide-react'
+import {
+  DEFAULT_POLICY_DOCUMENTS,
+  fetchPolicyDocuments,
+  type PolicyDocument,
+} from '../lib/policyDocuments'
 import '../styles/PolicyConsent.css'
-
-export interface PolicyDocument {
-  id: string
-  label: string
-  title: string
-  url: string
-}
-
-export const POLICY_DOCUMENTS: PolicyDocument[] = [
-  {
-    id: 'terms',
-    label: 'Terms & Conditions',
-    title: 'Remote Internship Compensation & Work Policy',
-    url: '/policies/compensation-work-policy.pdf',
-  },
-  {
-    id: 'policies',
-    label: 'Office Policies',
-    title: 'Updated Office Policies 2025',
-    url: '/policies/office-policies-2025.pdf',
-  },
-]
 
 interface PolicyConsentProps {
   accepted: Record<string, boolean>
@@ -35,7 +18,21 @@ export default function PolicyConsent({
   onAcceptedChange,
   errors = {},
 }: PolicyConsentProps) {
+  const [documents, setDocuments] = useState<PolicyDocument[]>(DEFAULT_POLICY_DOCUMENTS)
+  const [loading, setLoading] = useState(true)
   const [viewing, setViewing] = useState<PolicyDocument | null>(null)
+
+  const loadDocuments = () => fetchPolicyDocuments().then(setDocuments)
+
+  useEffect(() => {
+    loadDocuments().finally(() => setLoading(false))
+  }, [])
+
+  const openViewer = async (doc: PolicyDocument) => {
+    const fresh = await fetchPolicyDocuments()
+    setDocuments(fresh)
+    setViewing(fresh.find(d => d.id === doc.id) || doc)
+  }
 
   useEffect(() => {
     if (!viewing) return
@@ -50,6 +47,17 @@ export default function PolicyConsent({
     }
   }, [viewing])
 
+  if (loading) {
+    return (
+      <div className="policy-consent">
+        <p className="policy-consent-heading">
+          <FileText size={16} />
+          Loading policies...
+        </p>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="policy-consent">
@@ -58,7 +66,7 @@ export default function PolicyConsent({
           Review and accept before continuing
         </p>
 
-        {POLICY_DOCUMENTS.map(doc => (
+        {documents.map(doc => (
           <div key={doc.id} className={`policy-consent-item${errors[doc.id] ? ' has-error' : ''}`}>
             <label className="policy-consent-label">
               <input
@@ -73,7 +81,7 @@ export default function PolicyConsent({
                   className="policy-view-link"
                   onClick={e => {
                     e.preventDefault()
-                    setViewing(doc)
+                    void openViewer(doc)
                   }}
                 >
                   {doc.label}
@@ -83,7 +91,7 @@ export default function PolicyConsent({
             <button
               type="button"
               className="policy-view-btn"
-              onClick={() => setViewing(doc)}
+              onClick={() => void openViewer(doc)}
             >
               View <ExternalLink size={13} />
             </button>
@@ -144,8 +152,4 @@ export default function PolicyConsent({
       )}
     </>
   )
-}
-
-export function allPoliciesAccepted(accepted: Record<string, boolean>): boolean {
-  return POLICY_DOCUMENTS.every(doc => accepted[doc.id])
 }
