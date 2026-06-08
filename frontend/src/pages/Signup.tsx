@@ -7,6 +7,7 @@ import {
 
 import AuthLayout from '../components/AuthLayout'
 import FaceCapture, { type FacePhotoUrls } from '../components/FaceCapture'
+import PolicyConsent, { allPoliciesAccepted } from '../components/PolicyConsent'
 import { supabase, dbHelpers } from '../lib/supabase'
 import { api } from '../lib/api'
 import '../styles/Signup.css'
@@ -32,6 +33,12 @@ export default function Signup(_props: SignupProps) {
   const [dbError, setDbError]           = useState<string | null>(null)
   const [showFaceCapture, setShowFaceCapture] = useState(false)
   const [pendingAuthData, setPendingAuthData] = useState<{ userId: string; email: string; name: string } | null>(null)
+  const [acceptedPolicies, setAcceptedPolicies] = useState<Record<string, boolean>>({
+    terms: false,
+    policies: false,
+  })
+
+  const policiesAccepted = allPoliciesAccepted(acceptedPolicies)
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -41,6 +48,8 @@ export default function Signup(_props: SignupProps) {
     if (!empForm.password)       e.password = 'Password is required'
     else if (empForm.password.length < 8) e.password = 'Min 8 characters'
     if (empForm.confirm !== empForm.password) e.confirm = 'Passwords do not match'
+    if (!acceptedPolicies.terms) e.terms = 'You must accept the Terms & Conditions'
+    if (!acceptedPolicies.policies) e.policies = 'You must accept the Office Policies'
     return e
   }
 
@@ -246,6 +255,18 @@ export default function Signup(_props: SignupProps) {
             onChange={e => { setEmpForm(p => ({ ...p, confirm: e.target.value })); setErrors(p => ({ ...p, confirm: '' })) }} />
         </Field>
 
+        <PolicyConsent
+          accepted={acceptedPolicies}
+          onAcceptedChange={(id, value) => {
+            setAcceptedPolicies(prev => ({ ...prev, [id]: value }))
+            setErrors(prev => ({ ...prev, [id]: '' }))
+          }}
+          errors={{
+            terms: errors.terms,
+            policies: errors.policies,
+          }}
+        />
+
         <div style={{
           display: 'flex', alignItems: 'center', gap: '10px',
           padding: '10px 14px', borderRadius: '8px',
@@ -256,7 +277,7 @@ export default function Signup(_props: SignupProps) {
           <span>After submitting, you'll take <strong>3 face photos</strong> (front, left, right) for identity verification.</span>
         </div>
 
-        <button type="submit" disabled={isLoading} className="submit-btn">
+        <button type="submit" disabled={isLoading || !policiesAccepted} className="submit-btn">
           {isLoading
             ? <><span className="spinner" />Creating account...</>
             : <>Continue to Face Capture <Camera size={18} /></>}
